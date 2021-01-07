@@ -202,7 +202,7 @@ class FormUi:
         ttk.Label(self.frame, text='Topic:').grid(column=0, row=2, sticky=W)
         ttk.Entry(self.frame, textvariable=self.topic, width=25).grid(
             column=1, row=2, sticky=(W, E))
-        self.topic.set('OCF/xxx')
+        self.topic.set('OCF/*/oic%2Fd/R')
 
         # Create a text field to enter the data to be published
         self.data = tk.StringVar()
@@ -235,7 +235,7 @@ class FormUi:
         additional_data = ""
         props = None
         last_topic = my_topic.split("/")[-1]
-        if last_topic == "Update":
+        if last_topic in ["C","R","U","D","N"]:
             return_topic = "OCF/myreturn"
             props = mqtt.Properties(PacketTypes.PUBLISH)
             random_number = randrange(100000)
@@ -281,7 +281,7 @@ class FormUi:
         additional_data = " "
         props = None
         last_topic = my_topic.split("/")[-1]
-        if last_topic == "Update":
+        if last_topic in ["C","R","U","D","N"]:
             return_topic = "OCF/myreturn"
             props = mqtt.Properties(PacketTypes.PUBLISH)
             random_number = randrange(100000)
