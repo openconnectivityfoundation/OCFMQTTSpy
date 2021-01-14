@@ -46,8 +46,20 @@ from tkinter import ttk, VERTICAL, HORIZONTAL, N, S, E, W
 
 logger = logging.getLogger(__name__)
 
+topic_queue = queue.Queue()
+
+
 # The MQTTv5 callback takes the additional 'props' parameter.
 def on_connect(client, userdata, flags, rc, props):
+    """[summary]
+    mqtt onconnect implementation (callback)
+    Args:
+        client : mqtt client
+        userdata : mqtt userdata
+        flags : mqtt flags
+        rc : mqtt rc
+        props : mqtt properties
+    """
     my_string = "Connected with result code "+str(rc)
     print("===============")
     print(my_string)
@@ -62,6 +74,13 @@ def on_connect(client, userdata, flags, rc, props):
 
 
 def on_disconnect(mqttc, obj, rc):
+    """[summary]
+    mqtt on_disconnect callback implementation
+    Args:
+        mqttc : mqtt client
+        obj : mqtt object
+        rc : mqtt rc
+    """
     #mqttc.user_data_set(obj + 1)
     if obj == 0:
         mqttc.reconnect()
@@ -132,7 +151,7 @@ class ConsoleUi:
     def __init__(self, frame):
         self.frame = frame
         # Create a ScrolledText wdiget
-        self.scrolled_text = ScrolledText(frame, state='disabled', height=12)
+        self.scrolled_text = ScrolledText(frame, state='disabled', height=40)
         self.scrolled_text.grid(row=0, column=0, sticky=(N, S, W, E))
         self.scrolled_text.configure(font='TkFixedFont')
         self.scrolled_text.tag_config('INFO', foreground='black')
@@ -222,6 +241,17 @@ class FormUi:
             self.frame, text='Publish CBOR', command=self.submit_cbor)
         self.button.grid(column=1, row=4, sticky=W)
 
+        # Add a button to publish the message as cbor
+        self.button = ttk.Button(
+            self.frame, text='Discover oic/res', command=self.submit_disc)
+        self.button.grid(column=0, row=5, sticky=W)
+        
+        
+        # Add a button to publish the message as cbor
+        self.button = ttk.Button(
+            self.frame, text='Test', command=self.submit_test)
+        #self.button.grid(column=0, row=6, sticky=W)
+
     def submit_message(self):
         my_data = self.data.get()
         my_topic = self.topic.get()
@@ -236,7 +266,7 @@ class FormUi:
         props = None
         last_topic = my_topic.split("/")[-1]
         if last_topic in ["C","R","U","D","N"]:
-            return_topic = "OCF/myreturn"
+            return_topic = self.app.client.my_udn
             props = mqtt.Properties(PacketTypes.PUBLISH)
             random_number = randrange(100000)
             random_string = str(random_number)
@@ -250,6 +280,7 @@ class FormUi:
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
         print(my_string)
+        topic_queue.put({my_topic, props.CorrelationData})
         self.app.client.publish(
             my_topic, my_data, my_qos_int, retain_flag, properties=props)
 
@@ -282,7 +313,7 @@ class FormUi:
         props = None
         last_topic = my_topic.split("/")[-1]
         if last_topic in ["C","R","U","D","N"]:
-            return_topic = "OCF/myreturn"
+            return_topic = self.app.client.my_udn
             props = mqtt.Properties(PacketTypes.PUBLISH)
             random_number = randrange(100000)
             random_string = str(random_number)
@@ -295,8 +326,141 @@ class FormUi:
         my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
+        topic_queue.put({my_topic, props.CorrelationData})
         print(my_string)
-        self.app.client.publish(my_topic, cbor_data,
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+                 
+    def submit_disc(self):
+        my_data = self.data.get()
+        cbor_data = None
+        if my_data is not None and len(my_data) > 2:
+            try:
+                json_data = json.loads(my_data)
+            except JSONDecodeError as e:
+                # do whatever you want
+                logger.log(logging.ERROR, e)
+                return
+            except TypeError as e:
+                # do whatever you want in this case
+                logger.log(logging.ERROR, e)
+                return
+            cbor_data = cbor.dumps(json_data)
+        my_topic = "OCF/*/oic%2Fres/R"
+        my_qos = self.level.get()
+        my_qos_int = int(my_qos)
+        my_retain = self.btn_var.get()
+        print(" ====> RETAIN", my_retain)
+        retain_flag = False
+        if my_retain == "1":
+            print("retain is true")
+            retain_flag = True
+
+        additional_data = " "
+        props = None
+        last_topic = my_topic.split("/")[-1]
+        if last_topic in ["C","R","U","D","N"]:
+            return_topic = self.app.client.my_udn
+            props = mqtt.Properties(PacketTypes.PUBLISH)
+            random_number = randrange(100000)
+            random_string = str(random_number)
+            props.CorrelationData = random_string.encode("utf-8")
+            props.ResponseTopic = return_topic
+            additional_data = "\ncorr Id: " + \
+                str(props.CorrelationData) + \
+                " Response Topic: " + props.ResponseTopic
+
+        my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
+            " Retain: " + my_retain + " " + my_data + additional_data
+        logger.log(logging.INFO, my_string)
+        topic_queue.put({my_topic, props.CorrelationData})
+        print(my_string)
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+
+
+    def submit_test(self):
+        cbor_data = None
+        my_qos = self.level.get()
+        my_qos_int = int(my_qos)
+        my_retain = self.btn_var.get()
+        retain_flag = False
+        if my_retain == "1":
+            print("retain is true")
+            retain_flag = True
+        # /oic/res
+        my_topic = "OCF/*/oic%2Fres/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+                                        
+        my_topic = "OCF/*/oic%2Fres?if=oic.if.baseline/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+
+        my_topic = "OCF/*/oic%2Fres?if=oic.if.ll/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+                                
+        my_topic = "OCF/*/oic%2Fres?if=oic.if.b/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+                                
+        # /oic/p                      
+        my_topic = "OCF/*/oic%2Fp/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+
+        my_topic = "OCF/*/oic%2Fp?if=oic.if.r/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+                     
+        # /oic/d                        
+        my_topic = "OCF/*/oic%2Fd/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
+                                my_qos_int, retain_flag, properties=props)
+                                
+        my_topic = "OCF/*/oic%2Fd?if=oic.if.r/R"  
+        props = mqtt.Properties(PacketTypes.PUBLISH)
+        random_number = randrange(100000)
+        random_string = str(random_number)
+        props.CorrelationData = random_string.encode("utf-8")
+        props.ResponseTopic = self.app.client.my_udn
+        ret = self.app.client.publish(my_topic, cbor_data,
                                 my_qos_int, retain_flag, properties=props)
 
 
@@ -304,10 +468,11 @@ class ThirdUi:
 
     def __init__(self, frame):
         self.frame = frame
-        ttk.Label(self.frame, text='This is just an example of a third frame').grid(
+        labelText = tk.StringVar()
+        self.label = ttk.Label(self.frame, textvariable=labelText).grid(
             column=0, row=1, sticky=W)
-        ttk.Label(self.frame, text='With another line here!').grid(
-            column=0, row=4, sticky=W)
+        #ttk.Label(self.frame, text='With another line here!').grid(
+        #    column=0, row=4, sticky=W)
 
 
 class App:
@@ -333,15 +498,17 @@ class App:
         console_frame.rowconfigure(0, weight=1)
         horizontal_pane.add(console_frame, weight=1)
 
-        #third_frame = ttk.Labelframe(vertical_pane, text="Third Frame")
-        #vertical_pane.add(third_frame, weight=1)
+        third_frame = ttk.Labelframe(vertical_pane, text="Return topic info")
+        vertical_pane.add(third_frame, weight=1)
 
         # Initialize all frames
         self.form = FormUi(form_frame)
         self.form.app = self
         self.console = ConsoleUi(console_frame)
         self.console.app = self
-        #self.third = ThirdUi(third_frame)
+        self.third = ThirdUi(third_frame)
+        self.third.app = self
+        #self.third.labelText.set('OCF/*/oic%2Fd/R')
         self.root.protocol('WM_DELETE_WINDOW', self.quit)
         self.root.bind('<Control-q>', self.quit)
         signal.signal(signal.SIGINT, self.quit)
@@ -448,15 +615,25 @@ def main():
     app = App(root)
     app.client = client
 
+    x = uuid.uuid1()
+    client.my_udn = str(x)
+
     logger.log(logging.INFO, "broker :"+broker+"  port:"+str(port))
     logger.log(logging.INFO, "clientid :"+str(client_id))
     if args.username or args.password:
       logger.log(logging.INFO, "userid :"+str(args.username)+" password :"+str(args.password))
 
-    app.subscribe_topic = "OCF/#"
+    app.subscribe_topic = "OCF/*/#"
     print("Subscribing to topic: ", app.subscribe_topic)
+    logger.log(logging.INFO, "Subscribing to topic: " + str(app.subscribe_topic))
     my_val = client.subscribe(app.subscribe_topic, 2)
     print("subscription succeeded:", my_val)
+
+    print("Subscribing to return topic: ", app.client.my_udn)
+    logger.log(logging.INFO, "Subscribing to return topic: "+ str(app.client.my_udn))
+    my_val = client.subscribe(app.client.my_udn, 2)
+    print("subscription succeeded:", my_val)
+
 
     app.root.mainloop()
 
