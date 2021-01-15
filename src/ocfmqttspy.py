@@ -46,7 +46,7 @@ from tkinter import ttk, VERTICAL, HORIZONTAL, N, S, E, W
 
 logger = logging.getLogger(__name__)
 
-topic_queue = queue.Queue()
+topic_queue = []
 
 
 # The MQTTv5 callback takes the additional 'props' parameter.
@@ -89,6 +89,7 @@ def on_disconnect(mqttc, obj, rc):
 def on_message(client, userdata, message):
     data = message.payload
     data_str = "ERROR! not decoded"
+    correlation_id = 0
     try:
         data_str = str(message.payload.decode("utf-8"))
     except:
@@ -110,6 +111,7 @@ def on_message(client, userdata, message):
         props = message.properties
         if hasattr(props, 'CorrelationData'):
             print(" Correlation ID", props.CorrelationData)
+            correlation_id = props.CorrelationData
             additional_data += "correlation ID :" + \
                 str(props.CorrelationData) + " "
         if hasattr(props, 'ResponseTopic'):
@@ -118,10 +120,27 @@ def on_message(client, userdata, message):
     except NameError:
         pass
 
+    response_of_message = ""
+    if correlation_id != 0:
+        remove_job = None
+        for job in topic_queue:
+            print ("job", job)
+            if job[0] == correlation_id:
+                print ("response of:", job[1])
+                response_of_message = " response on: " + job[1]
+            if  "/*/" in job[1]:
+                print ("discovery")
+            else:
+                print ("not discovery")
+                remove_job = job
+        if remove_job is not None:
+            topic_queue.remove(remove_job)
+
     my_string = "received: " + str(message.topic) + " QOS: " + str(
-        message.qos) + " Retain: " + str(message.retain) + " " + additional_data + data_str
+        message.qos) + " Retain: " + str(message.retain) + " " +  response_of_message + additional_data + data_str
     logger.log(logging.INFO, my_string)
 
+        
 
 def on_unsubscribe(client, userdata, mid):
     print("---------- ")
@@ -280,7 +299,7 @@ class FormUi:
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
         print(my_string)
-        topic_queue.put({my_topic, props.CorrelationData})
+        topic_queue.append( [props.CorrelationData, my_topic])
         self.app.client.publish(
             my_topic, my_data, my_qos_int, retain_flag, properties=props)
 
@@ -326,7 +345,7 @@ class FormUi:
         my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
-        topic_queue.put({my_topic, props.CorrelationData})
+        topic_queue.append([props.CorrelationData, my_topic])
         print(my_string)
         ret = self.app.client.publish(my_topic, cbor_data,
                                 my_qos_int, retain_flag, properties=props)
@@ -373,7 +392,7 @@ class FormUi:
         my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
-        topic_queue.put({my_topic, props.CorrelationData})
+        topic_queue.append([props.CorrelationData, my_topic])
         print(my_string)
         ret = self.app.client.publish(my_topic, cbor_data,
                                 my_qos_int, retain_flag, properties=props)
