@@ -233,18 +233,18 @@ class FormUi:
 
         # Add a button to publish the message as text
         self.button = ttk.Button(
-            self.frame, text='Publish', command=self.submit_message)
+            self.frame, text='Publish', command=self.submit_cbor)
         self.button.grid(column=0, row=4, sticky=W)
 
         # Add a button to publish the message as cbor
-        self.button = ttk.Button(
-            self.frame, text='Publish CBOR', command=self.submit_cbor)
-        self.button.grid(column=1, row=4, sticky=W)
+        #self.button = ttk.Button(
+        #    self.frame, text='Publish CBOR', command=self.submit_cbor)
+        #self.button.grid(column=1, row=4, sticky=W)
 
         # Add a button to publish the message as cbor
         self.button = ttk.Button(
             self.frame, text='Discover oic/res', command=self.submit_disc)
-        self.button.grid(column=0, row=5, sticky=W)
+        self.button.grid(column=1, row=4, sticky=W)
         
         
         # Add a button to publish the message as cbor
