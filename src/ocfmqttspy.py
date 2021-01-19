@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #############################
 #
-#    copyright 2020 Open Interconnect Consortium, Inc. All rights reserved.
+#    copyright 2020-2021 Open Interconnect Consortium, Inc. All rights reserved.
 #    Redistribution and use in source and binary forms, with or without modification,
 #    are permitted provided that the following conditions are met:
 #    1.  Redistributions of source code must retain the above copyright notice,
@@ -44,14 +44,196 @@ import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 from tkinter import ttk, VERTICAL, HORIZONTAL, N, S, E, W
 
+# global variables
+# the logger (in the window)
 logger = logging.getLogger(__name__)
-
+# topic queue, will contain list of [props.CorrelationData, my_topic, cb, udn]
+# correlation id == returned correlation id by the responder
+# my_topic == topic that was the request
+# cb, function to be called
+# udn, the udn of the responder
 topic_queue = []
+# global return topic, will be set by the application
+return_topic = ""
 
+
+def oic_idd_cb(client, userdata, message, udn):
+    """ call back for the IDD request
+    Args:
+        client (class): mqtt client
+        userdata (not used): not used
+        message (class): received mqtt message
+        udn (string): udn, the responder udn
+    """
+    print ("oic_idd_cb")
+    json_data = get_json_from_cbor_data_from_message(message)
+    print (json_data)
+    url = list_url_from_idd_res(json_data)
+    print ("url", url)
+    publish_url(client, client.my_udn, udn, url, "R", "oic_idd_file_cb")
+
+def oic_idd_file_cb(client, userdata, message, udn):
+    """ call back for the IDD file request
+    Args:
+        client (class): mqtt client
+        userdata (not used): not used
+        message (class): received mqtt message
+        udn (string): udn, the responder udn
+    """
+    window = tk.Toplevel()
+    window.title("IDD:  "+udn) 
+    my_text = get_str_from_cbor_data_from_message(message)
+    text_area = ScrolledText(window,  
+                                      wrap = tk.WORD,  
+                                      width = 80,  
+                                      height = 50 ) 
+    text_area.grid(column = 0, pady = 10, padx = 10) 
+    text_area.insert(tk.INSERT,my_text)
+    text_area.configure(state ='disabled') 
+
+def oic_d_cb(client, userdata, message, udn):
+    """ call back for the IDD file request
+    Args:
+        client (class): mqtt client
+        userdata (not used): not used
+        message (class): received mqtt message
+        udn (string): udn, the responder udn
+    """
+    window = tk.Toplevel()
+    window.title(" /oic/d response of:  "+udn) 
+    my_text = get_str_from_cbor_data_from_message(message)
+    text_area = ScrolledText(window,  
+                                      wrap = tk.WORD,  
+                                      width = 80,  
+                                      height = 50 ) 
+    text_area.grid(column = 0, pady = 10, padx = 10) 
+    text_area.insert(tk.INSERT,my_text)
+    text_area.configure(state ='disabled') 
+    
+def oic_res_cb(client, userdata, message, udn):
+    """ call back for the IDD file request
+    Args:
+        client (class): mqtt client
+        userdata (not used): not used
+        message (class): received mqtt message
+        udn (string): udn, the responder udn
+    """
+    window = tk.Toplevel()
+    window.title(" /oic/res response of:  "+udn) 
+    my_text = get_str_from_cbor_data_from_message(message)
+    text_area = ScrolledText(window,  
+                                      wrap = tk.WORD,  
+                                      width = 80,  
+                                      height = 50 ) 
+    text_area.grid(column = 0, pady = 10, padx = 10) 
+    text_area.insert(tk.INSERT,my_text)
+    text_area.configure(state ='disabled') 
+
+def list_udn_from_res(json_data):
+    """
+    retrieve the udn from the oic/res return array (baseline)
+    """
+    if isinstance(json_data, list) == False:
+        return ""
+    for data in json_data:
+        if data.get("anchor"):
+            udn = data.get("anchor")
+            udn = udn[6:]
+            return udn
+    
+def list_idd_url_from_res(json_data):
+    """
+    retrieve the udn from the oic/res return array (baseline)
+    """
+    if isinstance(json_data, list) == False:
+        return ""
+    for data in json_data:
+        if data.get("rt"):
+            if "oic.wk.introspection" in data.get("rt"):
+               return  data.get("href")
+    
+def list_url_from_idd_res(json_data):
+    """
+    retrieve the udn from the oic/res return array (baseline)
+    """
+    if isinstance(json_data, dict) == False:
+        return ""
+    data = json_data.get("urlInfo")
+    for my_items in data:
+        #print (" ===> data ==\n", my_items, type(my_items))
+        if my_items.get("content-type"):
+            if "application/cbor" in my_items.get("content-type"):
+               return  my_items.get("url")
+    
+
+def get_json_from_cbor_data_from_message(message):
+    """retrieves the data as json, when the input is cbor
+    Args:
+        message mqtt: message
+    Returns:
+        json : data as json
+    """
+    json_data = []
+    try:
+        json_data = cbor.loads(message.payload)
+    except:
+        pass
+    return json_data
+
+def get_str_from_cbor_data_from_message(message):
+    """retrieves the data as string, when the input is cbor
+    Args:
+        message mqtt: message
+    Returns:
+        string : data as string
+    """
+    data_str = ""
+    try:
+        json_data = cbor.loads(message.payload)
+        data_str = json.dumps(json_data, indent=2, sort_keys=True)
+        data_str = "\n" + data_str
+    except:
+        pass
+    return data_str
+
+def publish_url(client, return_topic, udn, url, command=None, cb=None, message=None ):
+    """publish the message
+       udn + url as topic with optional command
+    Args:
+        client (mqtt): mqtt client
+        return_topic (string): return topic
+        udn (string): udn of the target device
+        url (string): url of the target
+        command (string, optional): command e.g. CRUDN. Defaults to None.
+        cb (function name, optional): callback function. Defaults to None.
+        message (any, optional): message to be published . Defaults to None.
+    """
+    my_url = url
+    my_qos_int = 0
+    retain_flag = False
+    cbor_data = message
+    if my_url[0] == "/":
+      my_url = my_url[1:]
+    my_url = my_url.replace("/","%2F")
+    my_topic = "OCF/"+udn+"/"+my_url
+    if command is not None:
+        if command in ["C","R","U","D","N"]:
+           my_topic += "/"+command
+        else:
+           logger.log(logging.ERROR, "command not in CRUDN:"+command)
+    props = mqtt.Properties(PacketTypes.PUBLISH)
+    random_number = randrange(100000)
+    random_string = str(random_number)
+    props.CorrelationData = random_string.encode("utf-8")
+    props.ResponseTopic = return_topic
+    print (" publish_url publish request:", my_topic, random_string )
+    topic_queue.append([props.CorrelationData, my_topic, cb, udn])
+    ret = client.publish(my_topic, cbor_data,
+                            my_qos_int, retain_flag, properties=props) 
 
 # The MQTTv5 callback takes the additional 'props' parameter.
 def on_connect(client, userdata, flags, rc, props):
-    """[summary]
+    """on connect callback
     mqtt onconnect implementation (callback)
     Args:
         client : mqtt client
@@ -74,7 +256,7 @@ def on_connect(client, userdata, flags, rc, props):
 
 
 def on_disconnect(mqttc, obj, rc):
-    """[summary]
+    """on_disconnect callback
     mqtt on_disconnect callback implementation
     Args:
         mqttc : mqtt client
@@ -85,11 +267,18 @@ def on_disconnect(mqttc, obj, rc):
     if obj == 0:
         mqttc.reconnect()
 
-
 def on_message(client, userdata, message):
+    """ on message callback
+    mqtt on_message callback implementation
+    Args:
+        client : mqtt client
+        userdata : not used
+        message : received mqtt message
+    """
     data = message.payload
     data_str = "ERROR! not decoded"
     correlation_id = 0
+    json_data = []
     try:
         data_str = str(message.payload.decode("utf-8"))
     except:
@@ -101,7 +290,7 @@ def on_message(client, userdata, message):
             pass
 
     print("---------- ")
-    print("message received ", data_str)
+    #print("message received ", data_str)
     print("message topic=", message.topic)
     print("message qos=", message.qos)
     print("message retain flag=", message.retain)
@@ -110,12 +299,12 @@ def on_message(client, userdata, message):
     try:
         props = message.properties
         if hasattr(props, 'CorrelationData'):
-            print(" Correlation ID", props.CorrelationData)
+            print("message Correlation ID", props.CorrelationData)
             correlation_id = props.CorrelationData
             additional_data += "correlation ID :" + \
                 str(props.CorrelationData) + " "
         if hasattr(props, 'ResponseTopic'):
-            print("ResponseTopic ", props.ResponseTopic)
+            print("message ResponseTopic ", props.ResponseTopic)
             additional_data += "Response Topic:" + str(props.ResponseTopic)
     except NameError:
         pass
@@ -123,15 +312,32 @@ def on_message(client, userdata, message):
     response_of_message = ""
     if correlation_id != 0:
         remove_job = None
+        #queue_len = len(topic_queue)
         for job in topic_queue:
             print ("job", job)
             if job[0] == correlation_id:
-                print ("response of:", job[1])
+                #print ("response of:", job[1])
                 response_of_message = " response on: " + job[1]
-            if  "/*/" in job[1]:
-                print ("discovery")
-            else:
-                print ("not discovery")
+                if  "/*/" in job[1]:
+                    print ("discovery")
+                    if "/*/oic%2Fres" in job[1]:
+                        udn = list_udn_from_res(json_data)
+                        print(" UDN from RES", udn)
+                        app.form.l1.insert(0, udn)
+                        app.form.l1.selection_set(0)
+                else:
+                    print ("not discovery")
+                    remove_job = job
+                    if "/oic%2Fres" in job[1]:
+                        udn = list_udn_from_res(json_data)
+                        url = list_idd_url_from_res(json_data)
+                        print (" udn, url", udn, url)
+                        publish_url(client, message.topic, udn, url, "R", "oic_idd_cb")
+                    if job[2] is not None:
+                        globals()[job[2]](client, userdata, message, job[3])  
+
+            elif  "/*/" in job[1]:
+                # remove another correlation_id that is a discovery
                 remove_job = job
         if remove_job is not None:
             topic_queue.remove(remove_job)
@@ -140,9 +346,14 @@ def on_message(client, userdata, message):
         message.qos) + " Retain: " + str(message.retain) + " " +  response_of_message + additional_data + data_str
     logger.log(logging.INFO, my_string)
 
-        
-
 def on_unsubscribe(client, userdata, mid):
+    """ on unsubscribe callback
+    mqtt on_unsubcribe callback implementation
+    Args:
+        client : mqtt client
+        userdata : not used
+        mid : received mqtt message
+    """
     print("---------- ")
     print("unsubscribing ", mid)
 
@@ -250,60 +461,51 @@ class FormUi:
             column=1, row=3, sticky=(W, E))
         self.data.set('{ "value" : true }')
 
-        # Add a button to publish the message as text
+        # Add a button to publish the message as cbor
         self.button = ttk.Button(
             self.frame, text='Publish', command=self.submit_cbor)
         self.button.grid(column=0, row=4, sticky=W)
 
-        # Add a button to publish the message as cbor
-        #self.button = ttk.Button(
-        #    self.frame, text='Publish CBOR', command=self.submit_cbor)
-        #self.button.grid(column=1, row=4, sticky=W)
-
-        # Add a button to publish the message as cbor
+        # Add a button to do discovery
         self.button = ttk.Button(
             self.frame, text='Discover oic/res', command=self.submit_disc)
         self.button.grid(column=1, row=4, sticky=W)
         
-        
-        # Add a button to publish the message as cbor
+        #ttk.Separator(self.frame, orient=HORIZONTAL).grid(row=7,column=0,columnspan=2, ipadx=200, sticky=W) 
+        ttk.Label(self.frame, text='   ').grid(column=0, row=7, sticky=W)
+
+        # Add a button to test
         self.button = ttk.Button(
             self.frame, text='Test', command=self.submit_test)
         #self.button.grid(column=0, row=6, sticky=W)
 
-    def submit_message(self):
-        my_data = self.data.get()
-        my_topic = self.topic.get()
-        my_qos = self.level.get()
-        my_qos_int = int(my_qos)
-        my_retain = self.btn_var.get()
-        retain_flag = True
-        if my_retain == "1":
-            retain_flag = True
+        # list box section
+        tk.Label(self.frame, text='Discovered:').grid(column=0, row=8, sticky=W)
+        len_max = len(random_string())
+        self.l1 = tk.Listbox(self.frame, height=3, width = len_max)
+        self.l1.grid(column=1, row=8, sticky=W)
+        # Add a button to retrieve the IDD file
+        self.button_idd = ttk.Button(
+            self.frame, text='IDD', command=self.submit_IDD)
+        self.button_idd.grid(column=1, row=12, sticky=W)
+        # Add a button to publish the message as cbor
+        self.button_clear = ttk.Button(
+            self.frame, text='Clear', command=self.submit_clear)
+        self.button_clear.grid(column=0, row=12, sticky=W)
 
-        additional_data = ""
-        props = None
-        last_topic = my_topic.split("/")[-1]
-        if last_topic in ["C","R","U","D","N"]:
-            return_topic = self.app.client.my_udn
-            props = mqtt.Properties(PacketTypes.PUBLISH)
-            random_number = randrange(100000)
-            random_string = str(random_number)
-            props.CorrelationData = random_string.encode("utf-8")
-            props.ResponseTopic = return_topic
-            additional_data += "\ncorr Id: " + \
-                str(props.CorrelationData) + \
-                " Response Topic: " + props.ResponseTopic
-
-        my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
-            " Retain: " + my_retain + " " + my_data + additional_data
-        logger.log(logging.INFO, my_string)
-        print(my_string)
-        topic_queue.append( [props.CorrelationData, my_topic])
-        self.app.client.publish(
-            my_topic, my_data, my_qos_int, retain_flag, properties=props)
+        # Add a button for oic/d
+        self.button = ttk.Button(
+            self.frame, text='oic/d', command=self.submit_D)
+        self.button.grid(column=0, row=13, sticky=W)
+       
+        # Add a button for oic/res
+        self.button = ttk.Button(
+            self.frame, text='oic/res', command=self.submit_res)
+        #self.button.grid(column=0, row=14, sticky=W)
 
     def submit_cbor(self):
+        """ publish 
+        """
         my_data = self.data.get()
         cbor_data = None
         if my_data is not None and len(my_data) > 2:
@@ -345,8 +547,8 @@ class FormUi:
         my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
-        topic_queue.append([props.CorrelationData, my_topic])
-        print(my_string)
+        topic_queue.append([props.CorrelationData, my_topic, None, None])
+        #print(my_string)
         ret = self.app.client.publish(my_topic, cbor_data,
                                 my_qos_int, retain_flag, properties=props)
                  
@@ -392,7 +594,7 @@ class FormUi:
         my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
-        topic_queue.append([props.CorrelationData, my_topic])
+        topic_queue.append([props.CorrelationData, my_topic, None, None])
         print(my_string)
         ret = self.app.client.publish(my_topic, cbor_data,
                                 my_qos_int, retain_flag, properties=props)
@@ -483,9 +685,93 @@ class FormUi:
                                 my_qos_int, retain_flag, properties=props)
 
 
+    def submit_IDD(self):
+        """ get the IDD list
+           will set a sequence of actions in play:
+           - get oic/res from the device (with UDN) from the list
+           - get the url of the IDD resource
+           - get the url of the IDD file
+           - show the IDD file in a popup window
+        """
+        # get the selected value of the listbox
+        index = int(self.l1.curselection()[0])
+        value = self.l1.get(index)
+        print ("You selected item ",index, value)
+
+        cbor_data = None
+        my_qos = self.level.get()
+        my_qos_int = int(my_qos)
+        my_retain = self.btn_var.get()
+        retain_flag = False
+        if my_retain == "1":
+            print("retain is true")
+            retain_flag = True
+        # /oic/res
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R") 
+
+        
+    def submit_D(self):
+        """ get the oic/d data
+           will set a sequence of actions in play:
+           - get oic/res from the device (with UDN) from the list
+           - get the url of the IDD resource
+           - get the url of the IDD file
+           - show the IDD file in a popup window
+        """
+        # get the selected value of the listbox
+        index = int(self.l1.curselection()[0])
+        value = self.l1.get(index)
+        print ("You selected item ",index, value)
+
+        cbor_data = None
+        my_qos = self.level.get()
+        my_qos_int = int(my_qos)
+        my_retain = self.btn_var.get()
+        retain_flag = False
+        if my_retain == "1":
+            print("retain is true")
+            retain_flag = True
+        # /oic/res
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/d", "R",  cb="oic_d_cb") 
+
+
+    def submit_res(self):
+        """ get the oic/res data
+           will set a sequence of actions in play:
+           - get oic/res from the device (with UDN) from the list
+           - get the url of the IDD resource
+           - get the url of the IDD file
+           - show the IDD file in a popup window
+        """
+        # get the selected value of the listbox
+        index = int(self.l1.curselection()[0])
+        value = self.l1.get(index)
+        print ("You selected item ",index, value)
+
+        cbor_data = None
+        my_qos = self.level.get()
+        my_qos_int = int(my_qos)
+        my_retain = self.btn_var.get()
+        retain_flag = False
+        if my_retain == "1":
+            print("retain is true")
+            retain_flag = True
+        # /oic/res
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R",  cb="oic_res_cb") 
+
+
+    def submit_clear(self):
+        """ clear the discovered device list
+        """
+        print ("Clear")
+        self.l1.delete(0)
+
 class ThirdUi:
 
     def __init__(self, frame):
+        """ third pane
+        """
+
         self.frame = frame
         labelText = tk.StringVar()
         self.label = ttk.Label(self.frame, textvariable=labelText).grid(
@@ -497,6 +783,8 @@ class ThirdUi:
 class App:
 
     def __init__(self, root):
+        """ create the application, having 3 panes.
+        """
         self.root = root
         root.title('OCF MQTT Spy')
         root.columnconfigure(0, weight=1)
@@ -533,18 +821,24 @@ class App:
         signal.signal(signal.SIGINT, self.quit)
 
     def quit(self, *args):
+        """ quit function for the app
+        """
         # unsubscribe from the topic
         self.client.unsubscribe(self.subscribe_topic)
         self.client.loop_stop()
         self.client.disconnect()
-
         self.root.destroy()
 
 
 def random_string():
+    """create random uuid
+    Returns:
+        string: random uuid
+    """
     x = uuid.uuid1()
     return str(x)
 
+app = None
 
 def main():
     # commandline arguments to the application, so that the app is quite generic to use.
@@ -622,6 +916,7 @@ def main():
     if args.username or args.password:
        client.username_pw_set(args.username, args.password)
 
+    # set all the callbacks
     client.on_connect = on_connect
     client.on_message = on_message
     client.on_unsubscribe = on_unsubscribe
@@ -630,10 +925,16 @@ def main():
     client.connect(broker, port, keep_alive)
     client.loop_start()
 
+    # initalize the GUI application
+    global app
     root = tk.Tk()
     app = App(root)
+    #add the mqtt client as variable
     app.client = client
 
+    # create my_udn in the mqtt client
+    # used as client_id
+    # used as return topic
     x = uuid.uuid1()
     client.my_udn = str(x)
 
@@ -642,18 +943,16 @@ def main():
     if args.username or args.password:
       logger.log(logging.INFO, "userid :"+str(args.username)+" password :"+str(args.password))
 
+    # subscribe to the "multicast" topic
     app.subscribe_topic = "OCF/*/#"
-    print("Subscribing to topic: ", app.subscribe_topic)
     logger.log(logging.INFO, "Subscribing to topic: " + str(app.subscribe_topic))
     my_val = client.subscribe(app.subscribe_topic, 2)
     print("subscription succeeded:", my_val)
 
-    print("Subscribing to return topic: ", app.client.my_udn)
+    # subscribe to the return topic
     logger.log(logging.INFO, "Subscribing to return topic: "+ str(app.client.my_udn))
     my_val = client.subscribe(app.client.my_udn, 2)
     print("subscription succeeded:", my_val)
-
-
     app.root.mainloop()
 
 
