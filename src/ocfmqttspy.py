@@ -165,6 +165,8 @@ def oic_res_cb(client, userdata, message, udn):
         elif "oic.if.rw" in url[2]:
             url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
             url_text  += "OCF/"+udn+"/"+url_escaped+"/U\n"
+        if "oic.if.baseline" in url[2]:
+            url_text  += "OCF/"+udn+"/"+url_escaped+"?if=oic.if.baseline/R\n"
 
     show_window_with_text(" URLS of: "+udn, url_text)
     #mystring = 
@@ -372,11 +374,9 @@ def on_message(client, userdata, message):
     response_of_message = ""
     if correlation_id != 0:
         remove_job = None
-        #queue_len = len(topic_queue)
         for job in topic_queue:
             print ("job", job)
             if job[0] == correlation_id:
-                #print ("response of:", job[1])
                 response_of_message = " response on: " + job[1]
                 if  "/*/" in job[1]:
                     print ("discovery")
@@ -526,71 +526,80 @@ class FormUi:
             column=1, row=2, sticky=(W, E))
         self.topic.set('OCF/*/oic%2Fd/R')
 
-        # Create a text field to enter the data to be published
-        self.data = tk.StringVar()
-        ttk.Label(self.frame, text='Message:').grid(column=0, row=3, sticky=W)
-        #ttk.Entry(self.frame, textvariable=self.data, width=25, height=20).grid(column=1, row=2, sticky=(W, E))
-        ttk.Entry(self.frame, textvariable=self.data, width=25).grid(
-            column=1, row=3, sticky=(W, E))
-        self.data.set('{ "value" : true }')
+        my_width = 45
+        # Create a text field to enter the Message to be published
+        ttk.Label(self.frame, text='Message:').grid(column=0, row=7, sticky=W)
+        self.message_entry = ScrolledText(self.frame, width=my_width, height=3)
+        self.message_entry.grid(column=1, row=7, sticky=W)
+        self.message_entry.insert(tk.END,'{ "value" : true }')
+        row_index = 10
+        row_index += 1
 
         # Add a button to publish the message as cbor
+        tk.Label(self.frame, text=' ').grid(column=0, row=row_index, sticky=W)
         self.button = ttk.Button(
             self.frame, text='Publish', command=self.submit_cbor)
-        self.button.grid(column=0, row=4, sticky=W)
+        self.button.grid(column=1, row=row_index, sticky=W)
 
+        row_index += 1 
+        ttk.Label(self.frame, text='   ').grid(column=0, row=row_index, sticky=W)
+
+        row_index += 1 
         # Add a button to do discovery
+        tk.Label(self.frame, text='Discovery (*)').grid(column=0, row=row_index, sticky=W)
         self.button = ttk.Button(
             self.frame, text='Discover oic/res', command=self.submit_disc)
-        self.button.grid(column=1, row=4, sticky=W)
-        
-        #ttk.Separator(self.frame, orient=HORIZONTAL).grid(row=7,column=0,columnspan=2, ipadx=200, sticky=W) 
-        ttk.Label(self.frame, text='   ').grid(column=0, row=7, sticky=W)
+        self.button.grid(column=1, row=row_index, sticky=W)
 
-        # Add a button to test
-        self.button = ttk.Button(
-            self.frame, text='Test', command=self.submit_test)
-        #self.button.grid(column=0, row=6, sticky=W)
-
+        row_index += 1
         # list box section
-        tk.Label(self.frame, text='Discovered:').grid(column=0, row=8, sticky=W)
-        len_max = len(random_string())
-        self.l1 = tk.Listbox(self.frame, height=3, width = len_max)
-        self.l1.grid(column=1, row=8, sticky=W)
+        tk.Label(self.frame, text='Discovered:').grid(column=0, row=row_index, sticky=W)
+        #len_max = len(random_string())
+        self.l1 = tk.Listbox(self.frame, height=3, width = my_width)
+        self.l1.grid(column=1, row=row_index, sticky=W)
        
+        row_index += 3
         # Add a button to publish the message as cbor
         self.button_clear = ttk.Button(
             self.frame, text='Clear', command=self.submit_clear)
-        self.button_clear.grid(column=0, row=12, sticky=W)
+        self.button_clear.grid(column=0, row=row_index, sticky=W)
 
+        row_index += 1
         # Add a button for oic/d
-        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=14, sticky=W)
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=row_index, sticky=W)
         self.button = ttk.Button(
             self.frame, text='oic/d', command=self.submit_D)
-        self.button.grid(column=1, row=14, sticky=W)
+        self.button.grid(column=1, row=row_index, sticky=W)
        
+        row_index += 1
         # Add a button for oic/res
-        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=15, sticky=W)
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=row_index, sticky=W)
         self.button = ttk.Button(
             self.frame, text='oic/res', command=self.submit_res)
-        self.button.grid(column=1, row=15, sticky=W)
-
+        self.button.grid(column=1, row=row_index, sticky=W)
+        row_index += 1
         # Add a button for oic/p
-        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=16, sticky=W)
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=row_index, sticky=W)
         self.button = ttk.Button(
             self.frame, text='oic/p', command=self.submit_P)
-        self.button.grid(column=1, row=16, sticky=W)
-
+        self.button.grid(column=1, row=row_index, sticky=W)
+        
+        row_index += 1
         # Add a button to retrieve the IDD file
-        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=17, sticky=W)
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=row_index, sticky=W)
         self.button_idd = ttk.Button(
             self.frame, text='IDD', command=self.submit_IDD)
-        self.button_idd.grid(column=1, row=17, sticky=W)
+        self.button_idd.grid(column=1, row=row_index, sticky=W)
 
     def submit_cbor(self):
-        """ publish 
+        """ publish the data
+        read the topic from screen
+        read the message, convert it to cbor
+        add qos level & retain info
+        if command, then add return topic and corrolation id.
+        publish the data  
         """
-        my_data = self.data.get()
+        my_data = self.message_entry.get('1.0', tk.END)
         cbor_data = None
         if my_data is not None and len(my_data) > 2:
             try:
@@ -632,12 +641,15 @@ class FormUi:
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
         topic_queue.append([props.CorrelationData, my_topic, None, None])
-        #print(my_string)
         ret = self.app.client.publish(my_topic, cbor_data,
                                 my_qos_int, retain_flag, properties=props)
                  
     def submit_disc(self):
-        my_data = self.data.get()
+        """ publish the oic/res discovery
+
+        publish the data  
+        """
+        my_data = "" # no input for discovery
         cbor_data = None
         if my_data is not None and len(my_data) > 2:
             try:
@@ -680,91 +692,6 @@ class FormUi:
         logger.log(logging.INFO, my_string)
         topic_queue.append([props.CorrelationData, my_topic, None, None])
         print(my_string)
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-
-
-    def submit_test(self):
-        cbor_data = None
-        my_qos = self.level.get()
-        my_qos_int = int(my_qos)
-        my_retain = self.btn_var.get()
-        retain_flag = False
-        if my_retain == "1":
-            print("retain is true")
-            retain_flag = True
-        # /oic/res
-        my_topic = "OCF/*/oic%2Fres/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-                                        
-        my_topic = "OCF/*/oic%2Fres?if=oic.if.baseline/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-
-        my_topic = "OCF/*/oic%2Fres?if=oic.if.ll/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-                                
-        my_topic = "OCF/*/oic%2Fres?if=oic.if.b/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-                                
-        # /oic/p                      
-        my_topic = "OCF/*/oic%2Fp/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-
-        my_topic = "OCF/*/oic%2Fp?if=oic.if.r/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-                     
-        # /oic/d                        
-        my_topic = "OCF/*/oic%2Fd/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-                                
-        my_topic = "OCF/*/oic%2Fd?if=oic.if.r/R"  
-        props = mqtt.Properties(PacketTypes.PUBLISH)
-        random_number = randrange(100000)
-        random_string = str(random_number)
-        props.CorrelationData = random_string.encode("utf-8")
-        props.ResponseTopic = self.app.client.my_udn
         ret = self.app.client.publish(my_topic, cbor_data,
                                 my_qos_int, retain_flag, properties=props)
 
