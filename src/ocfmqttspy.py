@@ -56,6 +56,17 @@ topic_queue = []
 # global return topic, will be set by the application
 return_topic = ""
 
+def escape_url(url):
+    """escape the url
+
+    Args:
+        url ([type]): [
+    """
+    my_url = url
+    if my_url[0] == "/":
+        my_url = my_url[1:]
+    url_escaped = my_url.replace("/","%2F")
+    return url_escaped
 
 def oic_idd_cb(client, userdata, message, udn):
     """ call back for the IDD request
@@ -80,36 +91,50 @@ def oic_idd_file_cb(client, userdata, message, udn):
         message (class): received mqtt message
         udn (string): udn, the responder udn
     """
-    window = tk.Toplevel()
-    window.title("IDD:  "+udn) 
     my_text = get_str_from_cbor_data_from_message(message)
-    text_area = ScrolledText(window,  
-                                      wrap = tk.WORD,  
-                                      width = 80,  
-                                      height = 50 ) 
-    text_area.grid(column = 0, pady = 10, padx = 10) 
-    text_area.insert(tk.INSERT,my_text)
-    text_area.configure(state ='disabled') 
+    show_window_with_text("IDD:  "+udn, my_text)
 
-def oic_d_cb(client, userdata, message, udn):
-    """ call back for the IDD file request
+
+def oic_residd_cb(client, userdata, message, udn):
+    """ call back for the Res->IDD request
     Args:
         client (class): mqtt client
         userdata (not used): not used
         message (class): received mqtt message
         udn (string): udn, the responder udn
     """
-    window = tk.Toplevel()
-    window.title(" /oic/d response of:  "+udn) 
+    print ("oic_idd_cb")
+    json_data = get_json_from_cbor_data_from_message(message)
+    print (json_data)
+
+    udn = list_udn_from_res(json_data)
+    url = list_idd_url_from_res(json_data)
+    print (" udn, url", udn, url)
+    publish_url(client, message.topic, udn, url, "R", "oic_idd_cb")
+
+def oic_d_cb(client, userdata, message, udn):
+    """ call back for the oic/d request
+    Args:
+        client (class): mqtt client
+        userdata (not used): not used
+        message (class): received mqtt message
+        udn (string): udn, the responder udn
+    """
     my_text = get_str_from_cbor_data_from_message(message)
-    text_area = ScrolledText(window,  
-                                      wrap = tk.WORD,  
-                                      width = 80,  
-                                      height = 50 ) 
-    text_area.grid(column = 0, pady = 10, padx = 10) 
-    text_area.insert(tk.INSERT,my_text)
-    text_area.configure(state ='disabled') 
+    show_window_with_text(" /oic/d response of: "+udn, my_text)
+
     
+def oic_p_cb(client, userdata, message, udn):
+    """ call back for the oic/p  request
+    Args:
+        client (class): mqtt client
+        userdata (not used): not used
+        message (class): received mqtt message
+        udn (string): udn, the responder udn
+    """
+    my_text = get_str_from_cbor_data_from_message(message)
+    show_window_with_text(" /oic/p response of: "+udn, my_text)
+
 def oic_res_cb(client, userdata, message, udn):
     """ call back for the IDD file request
     Args:
@@ -118,16 +143,31 @@ def oic_res_cb(client, userdata, message, udn):
         message (class): received mqtt message
         udn (string): udn, the responder udn
     """
-    window = tk.Toplevel()
-    window.title(" /oic/res response of:  "+udn) 
     my_text = get_str_from_cbor_data_from_message(message)
-    text_area = ScrolledText(window,  
-                                      wrap = tk.WORD,  
-                                      width = 80,  
-                                      height = 50 ) 
-    text_area.grid(column = 0, pady = 10, padx = 10) 
-    text_area.insert(tk.INSERT,my_text)
-    text_area.configure(state ='disabled') 
+    show_window_with_text(" /oic/res response of: "+udn, my_text)
+    my_json = get_json_from_cbor_data_from_message(message)
+    my_urls = list_resources_from_oic_res(my_json, filter=True)
+    print (my_urls)
+    url_text = ""
+    for url in my_urls:
+        url_escaped = escape_url(url[1])
+        item_text = "rt "
+        for item in url[0]:
+            item_text += item + " "
+        url_text += item_text +"\n"
+        if "oic.if.s" in url[2]:
+            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
+        elif "oic.if.a" in url[2]:
+            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
+            url_text  += "OCF/"+udn+"/"+url_escaped+"/U\n"
+        elif "oic.if.r" in url[2]:
+            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
+        elif "oic.if.rw" in url[2]:
+            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
+            url_text  += "OCF/"+udn+"/"+url_escaped+"/U\n"
+
+    show_window_with_text(" URLS of: "+udn, url_text)
+    #mystring = 
 
 def list_udn_from_res(json_data):
     """
@@ -166,6 +206,26 @@ def list_url_from_idd_res(json_data):
                return  my_items.get("url")
     
 
+def list_resources_from_oic_res(json_data, filter=False):
+    """
+    retrieve the list of resources from the oic/res return array (baseline)
+    filter = remove oic.wk.* resources from the list
+    """
+    if isinstance(json_data, list) == False:
+        return ""
+    urllist = []
+    for data in json_data:
+        rt = data.get("rt")
+        if rt:
+            if filter == False:
+                urllist.append([rt, data.get("href"), data.get("if")])
+            else:
+              for rt_value in rt:
+                if rt_value.startswith("oic.wk.") == False:
+                    urllist.append([rt, data.get("href"), data.get("if")])
+                    break
+    return urllist
+    
 def get_json_from_cbor_data_from_message(message):
     """retrieves the data as json, when the input is cbor
     Args:
@@ -328,11 +388,6 @@ def on_message(client, userdata, message):
                 else:
                     print ("not discovery")
                     remove_job = job
-                    if "/oic%2Fres" in job[1]:
-                        udn = list_udn_from_res(json_data)
-                        url = list_idd_url_from_res(json_data)
-                        print (" udn, url", udn, url)
-                        publish_url(client, message.topic, udn, url, "R", "oic_idd_cb")
                     if job[2] is not None:
                         globals()[job[2]](client, userdata, message, job[3])  
 
@@ -356,6 +411,24 @@ def on_unsubscribe(client, userdata, mid):
     """
     print("---------- ")
     print("unsubscribing ", mid)
+
+def show_window_with_text(window_name, my_text):
+    """ call back for the IDD file request
+    Args:
+        client (class): mqtt client
+        userdata (not used): not used
+        message (class): received mqtt message
+        udn (string): udn, the responder udn
+    """
+    window = tk.Toplevel()
+    window.title(window_name) 
+    text_area = ScrolledText(window,  
+                                      wrap = tk.WORD,  
+                                      width = 80,  
+                                      height = 50 ) 
+    text_area.grid(column = 0, pady = 10, padx = 10) 
+    text_area.insert(tk.INSERT,my_text)
+    text_area.configure(state ='disabled') 
 
 
 class QueueHandler(logging.Handler):
@@ -484,24 +557,35 @@ class FormUi:
         len_max = len(random_string())
         self.l1 = tk.Listbox(self.frame, height=3, width = len_max)
         self.l1.grid(column=1, row=8, sticky=W)
-        # Add a button to retrieve the IDD file
-        self.button_idd = ttk.Button(
-            self.frame, text='IDD', command=self.submit_IDD)
-        self.button_idd.grid(column=1, row=12, sticky=W)
+       
         # Add a button to publish the message as cbor
         self.button_clear = ttk.Button(
             self.frame, text='Clear', command=self.submit_clear)
         self.button_clear.grid(column=0, row=12, sticky=W)
 
         # Add a button for oic/d
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=14, sticky=W)
         self.button = ttk.Button(
             self.frame, text='oic/d', command=self.submit_D)
-        self.button.grid(column=0, row=13, sticky=W)
+        self.button.grid(column=1, row=14, sticky=W)
        
         # Add a button for oic/res
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=15, sticky=W)
         self.button = ttk.Button(
             self.frame, text='oic/res', command=self.submit_res)
-        #self.button.grid(column=0, row=14, sticky=W)
+        self.button.grid(column=1, row=15, sticky=W)
+
+        # Add a button for oic/p
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=16, sticky=W)
+        self.button = ttk.Button(
+            self.frame, text='oic/p', command=self.submit_P)
+        self.button.grid(column=1, row=16, sticky=W)
+
+        # Add a button to retrieve the IDD file
+        tk.Label(self.frame, text='Retrieve :').grid(column=0, row=17, sticky=W)
+        self.button_idd = ttk.Button(
+            self.frame, text='IDD', command=self.submit_IDD)
+        self.button_idd.grid(column=1, row=17, sticky=W)
 
     def submit_cbor(self):
         """ publish 
@@ -707,16 +791,14 @@ class FormUi:
             print("retain is true")
             retain_flag = True
         # /oic/res
-        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R") 
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R", cb="oic_residd_cb") 
 
         
     def submit_D(self):
         """ get the oic/d data
            will set a sequence of actions in play:
-           - get oic/res from the device (with UDN) from the list
-           - get the url of the IDD resource
-           - get the url of the IDD file
-           - show the IDD file in a popup window
+           - get oic/d from the device (with UDN) from the list
+           - show the response in a popup window
         """
         # get the selected value of the listbox
         index = int(self.l1.curselection()[0])
@@ -758,6 +840,29 @@ class FormUi:
             retain_flag = True
         # /oic/res
         publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R",  cb="oic_res_cb") 
+
+
+    def submit_P(self):
+        """ get the oic/p data
+           will set a sequence of actions in play:
+           - get oic/p from the device (with UDN) from the list
+           - show the response in a popup window
+        """
+        # get the selected value of the listbox
+        index = int(self.l1.curselection()[0])
+        value = self.l1.get(index)
+        print ("You selected item ",index, value)
+
+        cbor_data = None
+        my_qos = self.level.get()
+        my_qos_int = int(my_qos)
+        my_retain = self.btn_var.get()
+        retain_flag = False
+        if my_retain == "1":
+            print("retain is true")
+            retain_flag = True
+        # /oic/res
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/p", "R", cb="oic_p_cb") 
 
 
     def submit_clear(self):
