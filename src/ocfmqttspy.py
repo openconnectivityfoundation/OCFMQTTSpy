@@ -24,6 +24,9 @@
 import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 
+import configparser
+import os.path
+
 import threading
 import datetime
 import queue
@@ -385,7 +388,6 @@ def on_message(client, userdata, message):
                         print(" UDN from RES", udn)
                         # check if the udn is already listed..
                         ldata  = app.form.l1.get(0, "end")
-                        print ("==========>", ldata)
                         if udn not in ldata:
                             app.form.l1.insert(0, udn)
                             app.form.l1.selection_set(0)
@@ -709,6 +711,8 @@ class FormUi:
            - show the IDD file in a popup window
         """
         # get the selected value of the listbox
+        if self.l1.curselection() == ():
+            return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
         print ("You selected item ",index, value)
@@ -732,6 +736,8 @@ class FormUi:
            - show the response in a popup window
         """
         # get the selected value of the listbox
+        if self.l1.curselection() == ():
+            return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
         print ("You selected item ",index, value)
@@ -757,6 +763,8 @@ class FormUi:
            - show the IDD file in a popup window
         """
         # get the selected value of the listbox
+        if self.l1.curselection() == ():
+            return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
         print ("You selected item ",index, value)
@@ -780,6 +788,8 @@ class FormUi:
            - show the response in a popup window
         """
         # get the selected value of the listbox
+        if self.l1.curselection() == ():
+            return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
         print ("You selected item ",index, value)
@@ -805,15 +815,15 @@ class FormUi:
 class ThirdUi:
 
     def __init__(self, frame):
-        """ third pane
+        """ third (bottom) pane
         """
-
         self.frame = frame
-        labelText = tk.StringVar()
-        self.label = ttk.Label(self.frame, textvariable=labelText).grid(
-            column=0, row=1, sticky=W)
-        #ttk.Label(self.frame, text='With another line here!').grid(
-        #    column=0, row=4, sticky=W)
+
+
+        self.return_topic = tk.StringVar()
+        ttk.Label(self.frame, text='Return Topic:').grid(column=0, row=2, sticky=W)
+        entry = ttk.Entry(self.frame, state='disabled', textvariable=self.return_topic, width=100).grid(
+            column=1, row=2, sticky=(W, E))
 
 
 class App:
@@ -823,11 +833,25 @@ class App:
         """
         self.root = root
         root.title('OCF MQTT Spy')
+
+
+        menubar = tk.Menu(root)
+        filemenu = tk.Menu(menubar, tearoff=0)
+        filemenu.add_command(label="Config", command=donothing)
+        filemenu.add_separator()
+        filemenu.add_command(label="Exit", command=root.quit)
+
+        helpmenu = tk.Menu(menubar, tearoff=0)
+        helpmenu.add_command(label="About...", command=donothing)
+
+        root.config(menu=menubar)
         root.columnconfigure(0, weight=1)
         root.rowconfigure(0, weight=1)
+
         # Create the panes and frames
         vertical_pane = ttk.PanedWindow(self.root, orient=VERTICAL)
         vertical_pane.grid(row=0, column=0, sticky="nsew")
+        #vertical_pane.grid(row=1, column=1, sticky="nsew")
         horizontal_pane = ttk.PanedWindow(vertical_pane, orient=HORIZONTAL)
 
         vertical_pane.add(horizontal_pane)
@@ -851,7 +875,7 @@ class App:
         self.console.app = self
         self.third = ThirdUi(third_frame)
         self.third.app = self
-        #self.third.labelText.set('OCF/*/oic%2Fd/R')
+        #self.third.labelText = 'OCF/*/oic%2Fd/R'
         self.root.protocol('WM_DELETE_WINDOW', self.quit)
         self.root.bind('<Control-q>', self.quit)
         signal.signal(signal.SIGINT, self.quit)
@@ -876,6 +900,26 @@ def random_string():
 
 app = None
 
+def config_init(config, file):
+    'Create a configuration file if does not exist'
+    config.add_section('MQTT')
+    config.set('MQTT', 'host', '192.168.178.89')
+    config.set('MQTT', 'port', 1883)
+    config.set('MQTT', 'client_id', uuid.uuid1())
+    config.set('MQTT', 'keepalive', 5)
+    config.add_section('Security')
+    config.set('Security', 'username', 'my_username')
+    config.set('Security', 'password', 'my_password')
+    config.set('Security', 'cert', 'my_cert')
+    with open(file, 'w') as output:
+        config.write(output)
+
+def donothing():
+   filewin = tk.Toplevel(app.root)
+   button = tk.Button(filewin, text="Do nothing button")
+   button.pack()
+
+
 def main():
     # commandline arguments to the application, so that the app is quite generic to use.
     parser = argparse.ArgumentParser()
@@ -885,6 +929,7 @@ def main():
     parser.add_argument('-u', '--username', required=False, default=None)
     #parser.add_argument('-d', '--disable-clean-session', action='store_true', help="disable 'clean session' (sub + msgs not cleared when client disconnects)")
     parser.add_argument('-p', '--password', required=False, default=None)
+    parser.add_argument('-wc', '--writeconfig', required=False, default=None, action='store_true')
     parser.add_argument('-P', '--port', required=False, type=int,
                         default=None, help='Defaults to 8883 for TLS or 1883 for non-TLS')
     parser.add_argument('-k', '--keepalive',
@@ -894,34 +939,58 @@ def main():
     parser.add_argument('-F', '--cacerts', required=False, default=None)
     parser.add_argument('--tls-version', required=False, default=None,
                         help='TLS protocol version, can be one of tlsv1.2 tlsv1.1 or tlsv1\n')
-    #parser.add_argument('-D', '--debug', action='store_true')
 
-    #args = parser.parse_args()
+    print("===============")
     args, unknown = parser.parse_known_args()
+
+    config = configparser.RawConfigParser()
+    if  os.path.exists('mqtt.config'):
+        config.read('mqtt.config')
+    else: 
+        config = None
+
+    if args.writeconfig is not None:
+        print ("writing config...")
+        config = configparser.RawConfigParser()
+        config_init(config, "mqtt.config")
+        print ("writing config...done ")
+        quit()
 
     logging.basicConfig(level=logging.DEBUG)
 
     #
-    # default values
-    broker = "192.168.178.89"
-    client_id = None
-    usetls = args.use_tls
-
-    #
-    #  handle arguments
+    #  handle arguments, do this as default
     #
     broker = args.host
     if args.clientid == None:
         client_id = random_string()
+        if config is None:
+          print("RANDOM Client_id :", client_id)
     else:
         client_id = args.clientid
-    port = args.port    
+    port = args.port 
+    usetls = args.use_tls   
     if port is None:
-      if usetls:
-        port = 8883
-      else:
-        port = 1883
+        if usetls:
+            port = 8883
+        else:
+            port = 1883
     keep_alive = args.keepalive
+    if config is not None:
+        print ("  Reading Config file:")
+        broker = config['MQTT']['host']
+        if config['MQTT']['port'] is not None:
+            port = int(config['MQTT']['port'])
+        if config['MQTT']['client_id'] is not None:
+            client_id = config['MQTT']['client_id']
+        if config['MQTT']['keepalive'] is not None:
+            keep_alive = int( config['MQTT']['keepalive'])
+
+
+    print("  Broker/Host :", broker)
+    print("  Client_id   :", client_id)
+    print("  port        :", port)
+    print("  keep_alive  :", keep_alive)
 
     # create the client
     client = mqtt.Client(client_id, protocol=mqtt.MQTTv5) #, clean_session = not args.disable_clean_session)
@@ -965,14 +1034,18 @@ def main():
     global app
     root = tk.Tk()
     app = App(root)
+
     #add the mqtt client as variable
     app.client = client
+
+    app.root.title('OCF MQTT Spy [client_id]: '+ client_id)
+    app.third.return_topic.set(client_id)
+    #app.third.labelText = client_id
 
     # create my_udn in the mqtt client
     # used as client_id
     # used as return topic
-    x = uuid.uuid1()
-    client.my_udn = str(x)
+    client.my_udn = client_id
 
     logger.log(logging.INFO, "broker :"+broker+"  port:"+str(port))
     logger.log(logging.INFO, "clientid :"+str(client_id))
@@ -989,6 +1062,8 @@ def main():
     logger.log(logging.INFO, "Subscribing to return topic: "+ str(app.client.my_udn))
     my_val = client.subscribe(app.client.my_udn, 2)
     print("subscription succeeded:", my_val)
+
+    #app.root.config(menu=menubar)
     app.root.mainloop()
 
 
