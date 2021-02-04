@@ -383,8 +383,12 @@ def on_message(client, userdata, message):
                     if "/*/oic%2Fres" in job[1]:
                         udn = list_udn_from_res(json_data)
                         print(" UDN from RES", udn)
-                        app.form.l1.insert(0, udn)
-                        app.form.l1.selection_set(0)
+                        # check if the udn is already listed..
+                        ldata  = app.form.l1.get(0, "end")
+                        print ("==========>", ldata)
+                        if udn not in ldata:
+                            app.form.l1.insert(0, udn)
+                            app.form.l1.selection_set(0)
                 else:
                     print ("not discovery")
                     remove_job = job
@@ -795,8 +799,8 @@ class FormUi:
     def submit_clear(self):
         """ clear the discovered device list
         """
-        print ("Clear")
-        self.l1.delete(0)
+        print ("Clear - delete all entries")
+        self.l1.delete(0,'end')
 
 class ThirdUi:
 
