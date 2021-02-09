@@ -924,19 +924,20 @@ def main():
     # commandline arguments to the application, so that the app is quite generic to use.
     parser = argparse.ArgumentParser()
     parser.add_argument('-H', '--host', required=False,
-                        default="192.168.178.89")
-    parser.add_argument('-c', '--clientid', required=False, default=None)
+                        default="192.168.178.89", help="The host name or ip address of the MQTT server")
+    parser.add_argument('-c', '--clientid', required=False, default=None, help="The MQTT client id")
     parser.add_argument('-u', '--username', required=False, default=None)
     #parser.add_argument('-d', '--disable-clean-session', action='store_true', help="disable 'clean session' (sub + msgs not cleared when client disconnects)")
     parser.add_argument('-p', '--password', required=False, default=None)
-    parser.add_argument('-wc', '--writeconfig', required=False, default=None, action='store_true')
+    parser.add_argument('-wc', '--writeconfig', required=False, default=None, action='store_true',help="writes an example config file")
+    parser.add_argument('-rc', '--readconfig', required=False, default=None, help="Reads the configuration file with a specific filename")
     parser.add_argument('-P', '--port', required=False, type=int,
                         default=None, help='Defaults to 8883 for TLS or 1883 for non-TLS')
     parser.add_argument('-k', '--keepalive',
-                        required=False, type=int, default=60)
+                        required=False, type=int, default=60, help="The keep alive interval in seconds.")
     parser.add_argument('-s', '--use-tls', action='store_true')
     parser.add_argument('--insecure', action='store_true')
-    parser.add_argument('-F', '--cacerts', required=False, default=None)
+    parser.add_argument('-F', '--cacerts', required=False, default=None, help="the certificate file name")
     parser.add_argument('--tls-version', required=False, default=None,
                         help='TLS protocol version, can be one of tlsv1.2 tlsv1.1 or tlsv1\n')
 
@@ -946,8 +947,12 @@ def main():
     config = configparser.RawConfigParser()
     if  os.path.exists('mqtt.config'):
         config.read('mqtt.config')
-    else: 
-        config = None
+    elif args.readconfig is not None:
+       if  os.path.exists(args.readconfig ):
+         config.read(args.readconfig )
+         print("Reading config file ", args.readconfig)
+    else:
+       config = None
 
     if args.writeconfig is not None:
         print ("writing config...")
@@ -970,6 +975,7 @@ def main():
         client_id = args.clientid
     port = args.port 
     usetls = args.use_tls   
+    cacerts = None
     if port is None:
         if usetls:
             port = 8883
@@ -985,6 +991,9 @@ def main():
             client_id = config['MQTT']['client_id']
         if config['MQTT']['keepalive'] is not None:
             keep_alive = int( config['MQTT']['keepalive'])
+        if config['Security']['cacerts'] is not None:
+            cacerts = config['Security']['cacerts']
+            usetls = 1
 
 
     print("  Broker/Host :", broker)
@@ -995,7 +1004,7 @@ def main():
     # create the client
     client = mqtt.Client(client_id, protocol=mqtt.MQTTv5) #, clean_session = not args.disable_clean_session)
 
-    if usetls:
+    if usetls and config is None:
         if args.tls_version == "tlsv1.2":
           tlsVersion = ssl.PROTOCOL_TLSv1_2
         elif args.tls_version == "tlsv1.1":
@@ -1017,6 +1026,12 @@ def main():
 
         if args.insecure:
             client.tls_insecure_set(True)
+    elif usetls and config:
+        tlsVersion = None
+        cert_required = ssl.CERT_REQUIRED
+        # setting tls connection
+        print ("Setting TLS connection with certificate:", cacerts)
+        client.tls_set(ca_certs=cacerts, certfile=None, keyfile=None, cert_reqs=cert_required, tls_version=tlsVersion)
 
     if args.username or args.password:
        client.username_pw_set(args.username, args.password)
