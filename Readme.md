@@ -25,12 +25,20 @@ run pip3 install -U -r requirements.txt to install the dependencies.
 
 # Config file
 
-Config file 'MQTT.config' will read the configuration data for:
+The default config file is "mqtt.config". A specific config file can be loaded with option -rc.
 
-- Broker (Host)
-- port
-- client_id
-- keepalive
+Config file will read the configuration data for:
+MQTT:
+
+- Host the host name or ip address of the MQTT server
+- port, server port to be used
+- client_id, the client id, not set then a random uuid will be generated
+- keepalive, the keep alive for the TCP/TLS connection
+
+Security:
+
+- cacerts, the file name of the certificate file.
+
 
 The config file is read from the same location as the python script.
 
