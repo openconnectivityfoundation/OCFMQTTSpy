@@ -976,6 +976,8 @@ def main():
     port = args.port 
     usetls = args.use_tls   
     cacerts = None
+    clcerts = None
+    keycerts = None
     if port is None:
         if usetls:
             port = 8883
@@ -984,7 +986,8 @@ def main():
     keep_alive = args.keepalive
     if config is not None:
         print ("  Reading Config file:")
-        broker = config['MQTT']['host']
+        if config.has_option('MQTT','host'):
+            broker = config['MQTT']['host']
         if config.has_option('MQTT','port'):
             port = int(config['MQTT']['port'])
         if config.has_option('MQTT','client_id'):
@@ -994,6 +997,10 @@ def main():
         if config.has_option('Security','cacerts'):
             cacerts = config['Security']['cacerts']
             usetls = 1
+        if config.has_option('Security','clcerts'):
+            clcerts = config['Security']['clcerts']
+        if config.has_option('Security','keycerts'):
+            keycerts = config['Security']['keycerts']
 
     print("  Broker/Host :", broker)
     print("  Client_id   :", client_id)
@@ -1028,10 +1035,15 @@ def main():
     elif usetls and config:
         tlsVersion = None
         cert_required = ssl.CERT_REQUIRED
+        #tlsVersion = ssl.PROTOCOL_TLSv1_2
         # setting tls connection
         if cacerts is not None:
             print ("Setting TLS connection with certificate:", cacerts)
-            client.tls_set(ca_certs=cacerts, certfile=None, keyfile=None, cert_reqs=cert_required, tls_version=tlsVersion)
+            
+            client.tls_set(ca_certs=cacerts, certfile=clcerts, keyfile=keycerts, cert_reqs=cert_required, tls_version=tlsVersion)
+            #client.tls_set(cacerts)
+            #client.tls_insecure_set(True)
+            #client.tls_set(cacerts)
 
     if args.username or args.password:
        client.username_pw_set(args.username, args.password)

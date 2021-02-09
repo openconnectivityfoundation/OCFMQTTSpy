@@ -38,7 +38,8 @@ MQTT:
 
 Security:
 
-- cacerts, the file name of the certificate file.
+- cacerts, the file name of the certificate authority certificate file.
+- clcerts, the file name of the client certificate file.
 
 The config file is read from the same location as the python script.
 
