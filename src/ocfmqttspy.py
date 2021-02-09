@@ -985,16 +985,15 @@ def main():
     if config is not None:
         print ("  Reading Config file:")
         broker = config['MQTT']['host']
-        if config['MQTT']['port'] is not None:
+        if config.has_option('MQTT','port'):
             port = int(config['MQTT']['port'])
-        if config['MQTT']['client_id'] is not None:
+        if config.has_option('MQTT','client_id'):
             client_id = config['MQTT']['client_id']
-        if config['MQTT']['keepalive'] is not None:
+        if config.has_option('MQTT','keepalive'):
             keep_alive = int( config['MQTT']['keepalive'])
-        if config['Security']['cacerts'] is not None:
+        if config.has_option('Security','cacerts'):
             cacerts = config['Security']['cacerts']
             usetls = 1
-
 
     print("  Broker/Host :", broker)
     print("  Client_id   :", client_id)
@@ -1030,8 +1029,9 @@ def main():
         tlsVersion = None
         cert_required = ssl.CERT_REQUIRED
         # setting tls connection
-        print ("Setting TLS connection with certificate:", cacerts)
-        client.tls_set(ca_certs=cacerts, certfile=None, keyfile=None, cert_reqs=cert_required, tls_version=tlsVersion)
+        if cacerts is not None:
+            print ("Setting TLS connection with certificate:", cacerts)
+            client.tls_set(ca_certs=cacerts, certfile=None, keyfile=None, cert_reqs=cert_required, tls_version=tlsVersion)
 
     if args.username or args.password:
        client.username_pw_set(args.username, args.password)
