@@ -164,12 +164,12 @@ def oic_res_cb(client, userdata, message, udn):
             item_text += item + " "
         url_text += item_text + "\n"
         if "oic.if.s" in url[2]:
-            url_text += "OCF/" + udn + "/"+url_escaped + "/R\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
         elif "oic.if.a" in url[2]:
             url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
             url_text += "OCF/" + udn + "/" + url_escaped + "/U\n"
         elif "oic.if.r" in url[2]:
-            url_text  += "OCF/" + udn + "/" + url_escaped + "/R\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
         elif "oic.if.rw" in url[2]:
             url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
             url_text += "OCF/" + udn + "/" + url_escaped + "/U\n"
@@ -291,7 +291,7 @@ def publish_url(client, return_topic, udn, url, command=None, cb=None, message=N
     my_url = my_url.replace("/", "%2F")
     my_topic = "OCF/" + udn + "/" + my_url
     if command is not None:
-        if command in ["C","R","U","D","N"]:
+        if command in ["C", "R", "U", "D", "N"]:
             my_topic += "/" + command
         else:
             logger.log(logging.ERROR, "command not in CRUDN:" + command)
@@ -302,7 +302,7 @@ def publish_url(client, return_topic, udn, url, command=None, cb=None, message=N
     props.ResponseTopic = return_topic
     print(" publish_url publish request:", my_topic, random_string)
     topic_queue.append([props.CorrelationData, my_topic, cb, udn])
-    ret = client.publish(my_topic, cbor_data, my_qos_int, retain_flag, properties=props) 
+    ret = client.publish(my_topic, cbor_data, my_qos_int, retain_flag, properties=props)
 
 
 # The MQTTv5 callback takes the additional 'props' parameter.
@@ -440,7 +440,7 @@ def show_window_with_text(window_name, my_text):
     text_area = ScrolledText(window, wrap=tk.WORD, width=80, height=50)
     text_area.grid(column=0, pady=10, padx=10)
     text_area.insert(tk.INSERT, my_text)
-    text_area.configure(state ='disabled')
+    text_area.configure(state='disabled')
 
 
 class QueueHandler(logging.Handler):
@@ -646,7 +646,7 @@ class FormUi:
                 str(props.CorrelationData) + \
                 " Response Topic: " + props.ResponseTopic
 
-        my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
+        my_string = "publish: " + str(self.topic.get()) + " QOS: " + my_qos + \
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
         topic_queue.append([props.CorrelationData, my_topic, None, None])
