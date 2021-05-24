@@ -59,6 +59,7 @@ topic_queue = []
 # global return topic, will be set by the application
 return_topic = ""
 
+
 def escape_url(url):
     """escape the url
 
@@ -68,8 +69,9 @@ def escape_url(url):
     my_url = url
     if my_url[0] == "/":
         my_url = my_url[1:]
-    url_escaped = my_url.replace("/","%2F")
+    url_escaped = my_url.replace("/", "%2F")
     return url_escaped
+
 
 def oic_idd_cb(client, userdata, message, udn):
     """ call back for the IDD request
@@ -79,12 +81,13 @@ def oic_idd_cb(client, userdata, message, udn):
         message (class): received mqtt message
         udn (string): udn, the responder udn
     """
-    print ("oic_idd_cb")
+    print("oic_idd_cb")
     json_data = get_json_from_cbor_data_from_message(message)
-    print (json_data)
+    print(json_data)
     url = list_url_from_idd_res(json_data)
-    print ("url", url)
+    print("url", url)
     publish_url(client, client.my_udn, udn, url, "R", "oic_idd_file_cb")
+
 
 def oic_idd_file_cb(client, userdata, message, udn):
     """ call back for the IDD file request
@@ -95,7 +98,7 @@ def oic_idd_file_cb(client, userdata, message, udn):
         udn (string): udn, the responder udn
     """
     my_text = get_str_from_cbor_data_from_message(message)
-    show_window_with_text("IDD:  "+udn, my_text)
+    show_window_with_text("IDD:  " + udn, my_text)
 
 
 def oic_residd_cb(client, userdata, message, udn):
@@ -106,14 +109,15 @@ def oic_residd_cb(client, userdata, message, udn):
         message (class): received mqtt message
         udn (string): udn, the responder udn
     """
-    print ("oic_idd_cb")
+    print("oic_idd_cb")
     json_data = get_json_from_cbor_data_from_message(message)
-    print (json_data)
+    print(json_data)
 
     udn = list_udn_from_res(json_data)
     url = list_idd_url_from_res(json_data)
-    print (" udn, url", udn, url)
+    print(" udn, url", udn, url)
     publish_url(client, message.topic, udn, url, "R", "oic_idd_cb")
+
 
 def oic_d_cb(client, userdata, message, udn):
     """ call back for the oic/d request
@@ -124,9 +128,9 @@ def oic_d_cb(client, userdata, message, udn):
         udn (string): udn, the responder udn
     """
     my_text = get_str_from_cbor_data_from_message(message)
-    show_window_with_text(" /oic/d response of: "+udn, my_text)
+    show_window_with_text(" /oic/d response of: " + udn, my_text)
 
-    
+
 def oic_p_cb(client, userdata, message, udn):
     """ call back for the oic/p  request
     Args:
@@ -136,7 +140,8 @@ def oic_p_cb(client, userdata, message, udn):
         udn (string): udn, the responder udn
     """
     my_text = get_str_from_cbor_data_from_message(message)
-    show_window_with_text(" /oic/p response of: "+udn, my_text)
+    show_window_with_text(" /oic/p response of: " + udn, my_text)
+
 
 def oic_res_cb(client, userdata, message, udn):
     """ call back for the IDD file request
@@ -147,90 +152,92 @@ def oic_res_cb(client, userdata, message, udn):
         udn (string): udn, the responder udn
     """
     my_text = get_str_from_cbor_data_from_message(message)
-    show_window_with_text(" /oic/res response of: "+udn, my_text)
+    show_window_with_text(" /oic/res response of: " + udn, my_text)
     my_json = get_json_from_cbor_data_from_message(message)
     my_urls = list_resources_from_oic_res(my_json, filter=True)
-    print (my_urls)
+    print(my_urls)
     url_text = ""
     for url in my_urls:
         url_escaped = escape_url(url[1])
         item_text = "rt "
         for item in url[0]:
             item_text += item + " "
-        url_text += item_text +"\n"
+        url_text += item_text + "\n"
         if "oic.if.s" in url[2]:
-            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
         elif "oic.if.a" in url[2]:
-            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
-            url_text  += "OCF/"+udn+"/"+url_escaped+"/U\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/U\n"
         elif "oic.if.r" in url[2]:
-            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
         elif "oic.if.rw" in url[2]:
-            url_text  += "OCF/"+udn+"/"+url_escaped+"/R\n"
-            url_text  += "OCF/"+udn+"/"+url_escaped+"/U\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/R\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "/U\n"
         if "oic.if.baseline" in url[2]:
-            url_text  += "OCF/"+udn+"/"+url_escaped+"?if=oic.if.baseline/R\n"
+            url_text += "OCF/" + udn + "/" + url_escaped + "?if=oic.if.baseline/R\n"
+    show_window_with_text(" URLS of: " + udn, url_text)
 
-    show_window_with_text(" URLS of: "+udn, url_text)
-    #mystring = 
 
 def list_udn_from_res(json_data):
     """
     retrieve the udn from the oic/res return array (baseline)
     """
-    if isinstance(json_data, list) == False:
+    if isinstance(json_data, list) is False:
         return ""
     for data in json_data:
         if data.get("anchor"):
             udn = data.get("anchor")
             udn = udn[6:]
             return udn
-    
+
+
 def list_idd_url_from_res(json_data):
     """
     retrieve the udn from the oic/res return array (baseline)
     """
-    if isinstance(json_data, list) == False:
+    if isinstance(json_data, list) is False:
         return ""
     for data in json_data:
         if data.get("rt"):
             if "oic.wk.introspection" in data.get("rt"):
-               return  data.get("href")
-    
+                return data.get("href")
+
+
 def list_url_from_idd_res(json_data):
     """
     retrieve the udn from the oic/res return array (baseline)
     """
-    if isinstance(json_data, dict) == False:
+    if isinstance(json_data, dict) is False:
         return ""
     data = json_data.get("urlInfo")
     for my_items in data:
-        #print (" ===> data ==\n", my_items, type(my_items))
+        # print (" ===> data ==\n", my_items, type(my_items))
         if my_items.get("content-type"):
             if "application/cbor" in my_items.get("content-type"):
-               return  my_items.get("url")
-    
+                return my_items.get("url")
+
 
 def list_resources_from_oic_res(json_data, filter=False):
     """
     retrieve the list of resources from the oic/res return array (baseline)
     filter = remove oic.wk.* resources from the list
     """
-    if isinstance(json_data, list) == False:
+    if isinstance(json_data, list) is False:
         return ""
     urllist = []
     for data in json_data:
         rt = data.get("rt")
         if rt:
-            if filter == False:
+            if filter is False:
                 urllist.append([rt, data.get("href"), data.get("if")])
             else:
-              for rt_value in rt:
-                if rt_value.startswith("oic.wk.") == False:
-                    urllist.append([rt, data.get("href"), data.get("if")])
-                    break
+                for rt_value in rt:
+                    if rt_value.startswith("oic.wk.") is False:
+                        urllist.append([rt, data.get("href"), data.get("if")])
+                        break
     return urllist
-    
+
+
 def get_json_from_cbor_data_from_message(message):
     """retrieves the data as json, when the input is cbor
     Args:
@@ -244,6 +251,7 @@ def get_json_from_cbor_data_from_message(message):
     except:
         pass
     return json_data
+
 
 def get_str_from_cbor_data_from_message(message):
     """retrieves the data as string, when the input is cbor
@@ -261,7 +269,8 @@ def get_str_from_cbor_data_from_message(message):
         pass
     return data_str
 
-def publish_url(client, return_topic, udn, url, command=None, cb=None, message=None ):
+
+def publish_url(client, return_topic, udn, url, command=None, cb=None, message=None):
     """publish the message
        udn + url as topic with optional command
     Args:
@@ -278,23 +287,23 @@ def publish_url(client, return_topic, udn, url, command=None, cb=None, message=N
     retain_flag = False
     cbor_data = message
     if my_url[0] == "/":
-      my_url = my_url[1:]
-    my_url = my_url.replace("/","%2F")
-    my_topic = "OCF/"+udn+"/"+my_url
+        my_url = my_url[1:]
+    my_url = my_url.replace("/", "%2F")
+    my_topic = "OCF/" + udn + "/" + my_url
     if command is not None:
-        if command in ["C","R","U","D","N"]:
-           my_topic += "/"+command
+        if command in ["C", "R", "U", "D", "N"]:
+            my_topic += "/" + command
         else:
-           logger.log(logging.ERROR, "command not in CRUDN:"+command)
+            logger.log(logging.ERROR, "command not in CRUDN:" + command)
     props = mqtt.Properties(PacketTypes.PUBLISH)
     random_number = randrange(100000)
     random_string = str(random_number)
     props.CorrelationData = random_string.encode("utf-8")
     props.ResponseTopic = return_topic
-    print (" publish_url publish request:", my_topic, random_string )
+    print(" publish_url publish request:", my_topic, random_string)
     topic_queue.append([props.CorrelationData, my_topic, cb, udn])
-    ret = client.publish(my_topic, cbor_data,
-                            my_qos_int, retain_flag, properties=props) 
+    ret = client.publish(my_topic, cbor_data, my_qos_int, retain_flag, properties=props)
+
 
 # The MQTTv5 callback takes the additional 'props' parameter.
 def on_connect(client, userdata, flags, rc, props):
@@ -307,7 +316,7 @@ def on_connect(client, userdata, flags, rc, props):
         rc : mqtt rc
         props : mqtt properties
     """
-    my_string = "Connected with result code "+str(rc)
+    my_string = "Connected with result code " + str(rc)
     print("===============")
     print(my_string)
     print("flags:", str(flags))
@@ -328,9 +337,10 @@ def on_disconnect(mqttc, obj, rc):
         obj : mqtt object
         rc : mqtt rc
     """
-    #mqttc.user_data_set(obj + 1)
+    # mqttc.user_data_set(obj + 1)
     if obj == 0:
         mqttc.reconnect()
+
 
 def on_message(client, userdata, message):
     """ on message callback
@@ -355,7 +365,6 @@ def on_message(client, userdata, message):
             pass
 
     print("---------- ")
-    #print("message received ", data_str)
     print("message topic=", message.topic)
     print("message qos=", message.qos)
     print("message retain flag=", message.retain)
@@ -366,8 +375,7 @@ def on_message(client, userdata, message):
         if hasattr(props, 'CorrelationData'):
             print("message Correlation ID", props.CorrelationData)
             correlation_id = props.CorrelationData
-            additional_data += "correlation ID :" + \
-                str(props.CorrelationData) + " "
+            additional_data += "correlation ID :" + str(props.CorrelationData) + " "
         if hasattr(props, 'ResponseTopic'):
             print("message ResponseTopic ", props.ResponseTopic)
             additional_data += "Response Topic:" + str(props.ResponseTopic)
@@ -378,34 +386,34 @@ def on_message(client, userdata, message):
     if correlation_id != 0:
         remove_job = None
         for job in topic_queue:
-            print ("job", job)
+            print("job", job)
             if job[0] == correlation_id:
                 response_of_message = " response on: " + job[1]
-                if  "/*/" in job[1]:
-                    print ("discovery")
+                if "/*/" in job[1]:
+                    print("discovery")
                     if "/*/oic%2Fres" in job[1]:
                         udn = list_udn_from_res(json_data)
                         print(" UDN from RES", udn)
                         # check if the udn is already listed..
-                        ldata  = app.form.l1.get(0, "end")
+                        ldata = app.form.l1.get(0, "end")
                         if udn not in ldata:
                             app.form.l1.insert(0, udn)
                             app.form.l1.selection_set(0)
                 else:
-                    print ("not discovery")
+                    print("not discovery")
                     remove_job = job
                     if job[2] is not None:
-                        globals()[job[2]](client, userdata, message, job[3])  
+                        globals()[job[2]](client, userdata, message, job[3])
 
-            elif  "/*/" in job[1]:
+            elif "/*/" in job[1]:
                 # remove another correlation_id that is a discovery
                 remove_job = job
         if remove_job is not None:
             topic_queue.remove(remove_job)
 
-    my_string = "received: " + str(message.topic) + " QOS: " + str(
-        message.qos) + " Retain: " + str(message.retain) + " " +  response_of_message + additional_data + data_str
+    my_string = "received: " + str(message.topic) + " QOS: " + str(message.qos) + " Retain: " + str(message.retain) + " " + response_of_message + additional_data + data_str
     logger.log(logging.INFO, my_string)
+
 
 def on_unsubscribe(client, userdata, mid):
     """ on unsubscribe callback
@@ -418,6 +426,7 @@ def on_unsubscribe(client, userdata, mid):
     print("---------- ")
     print("unsubscribing ", mid)
 
+
 def show_window_with_text(window_name, my_text):
     """ call back for the IDD file request
     Args:
@@ -427,14 +436,11 @@ def show_window_with_text(window_name, my_text):
         udn (string): udn, the responder udn
     """
     window = tk.Toplevel()
-    window.title(window_name) 
-    text_area = ScrolledText(window,  
-                                      wrap = tk.WORD,  
-                                      width = 80,  
-                                      height = 50 ) 
-    text_area.grid(column = 0, pady = 10, padx = 10) 
-    text_area.insert(tk.INSERT,my_text)
-    text_area.configure(state ='disabled') 
+    window.title(window_name)
+    text_area = ScrolledText(window, wrap=tk.WORD, width=80, height=50)
+    text_area.grid(column=0, pady=10, padx=10)
+    text_area.insert(tk.INSERT, my_text)
+    text_area.configure(state='disabled')
 
 
 class QueueHandler(logging.Handler):
@@ -467,8 +473,7 @@ class ConsoleUi:
         self.scrolled_text.tag_config('DEBUG', foreground='gray')
         self.scrolled_text.tag_config('WARNING', foreground='orange')
         self.scrolled_text.tag_config('ERROR', foreground='red')
-        self.scrolled_text.tag_config(
-            'CRITICAL', foreground='red', underline=1)
+        self.scrolled_text.tag_config('CRITICAL', foreground='red', underline=1)
         # Create a logging handler using a queue
         self.log_queue = queue.Queue()
         self.queue_handler = QueueHandler(self.log_queue)
@@ -537,7 +542,7 @@ class FormUi:
         ttk.Label(self.frame, text='Message:').grid(column=0, row=7, sticky=W)
         self.message_entry = ScrolledText(self.frame, width=my_width, height=3)
         self.message_entry.grid(column=1, row=7, sticky=W)
-        self.message_entry.insert(tk.END,'{ "value" : true }')
+        self.message_entry.insert(tk.END, '{"value": true}')
         row_index = 10
         row_index += 1
 
@@ -547,10 +552,10 @@ class FormUi:
             self.frame, text='Publish', command=self.submit_cbor)
         self.button.grid(column=1, row=row_index, sticky=W)
 
-        row_index += 1 
+        row_index += 1
         ttk.Label(self.frame, text='   ').grid(column=0, row=row_index, sticky=W)
 
-        row_index += 1 
+        row_index += 1
         # Add a button to do discovery
         tk.Label(self.frame, text='Discovery (*)').grid(column=0, row=row_index, sticky=W)
         self.button = ttk.Button(
@@ -560,14 +565,13 @@ class FormUi:
         row_index += 1
         # list box section
         tk.Label(self.frame, text='Discovered:').grid(column=0, row=row_index, sticky=W)
-        #len_max = len(random_string())
-        self.l1 = tk.Listbox(self.frame, height=3, width = my_width)
+        # len_max = len(random_string())
+        self.l1 = tk.Listbox(self.frame, height=3, width=my_width)
         self.l1.grid(column=1, row=row_index, sticky=W)
-       
+
         row_index += 3
         # Add a button to publish the message as cbor
-        self.button_clear = ttk.Button(
-            self.frame, text='Clear', command=self.submit_clear)
+        self.button_clear = ttk.Button(self.frame, text='Clear', command=self.submit_clear)
         self.button_clear.grid(column=0, row=row_index, sticky=W)
 
         row_index += 1
@@ -576,7 +580,7 @@ class FormUi:
         self.button = ttk.Button(
             self.frame, text='oic/d', command=self.submit_D)
         self.button.grid(column=1, row=row_index, sticky=W)
-       
+
         row_index += 1
         # Add a button for oic/res
         tk.Label(self.frame, text='Retrieve :').grid(column=0, row=row_index, sticky=W)
@@ -589,7 +593,6 @@ class FormUi:
         self.button = ttk.Button(
             self.frame, text='oic/p', command=self.submit_P)
         self.button.grid(column=1, row=row_index, sticky=W)
-        
         row_index += 1
         # Add a button to retrieve the IDD file
         tk.Label(self.frame, text='Retrieve :').grid(column=0, row=row_index, sticky=W)
@@ -603,7 +606,7 @@ class FormUi:
         read the message, convert it to cbor
         add qos level & retain info
         if command, then add return topic and corrolation id.
-        publish the data  
+        publish the data
         """
         my_data = self.message_entry.get('1.0', tk.END)
         cbor_data = None
@@ -632,7 +635,7 @@ class FormUi:
         additional_data = " "
         props = None
         last_topic = my_topic.split("/")[-1]
-        if last_topic in ["C","R","U","D","N"]:
+        if last_topic in ["C", "R", "U", "D", "N"]:
             return_topic = self.app.client.my_udn
             props = mqtt.Properties(PacketTypes.PUBLISH)
             random_number = randrange(100000)
@@ -643,19 +646,18 @@ class FormUi:
                 str(props.CorrelationData) + \
                 " Response Topic: " + props.ResponseTopic
 
-        my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
+        my_string = "publish: " + str(self.topic.get()) + " QOS: " + my_qos + \
             " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
         topic_queue.append([props.CorrelationData, my_topic, None, None])
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-                 
+        ret = self.app.client.publish(my_topic, cbor_data, my_qos_int, retain_flag, properties=props)
+
     def submit_disc(self):
         """ publish the oic/res discovery
 
-        publish the data  
+        publish the data
         """
-        my_data = "" # no input for discovery
+        my_data = ""  # no input for discovery
         cbor_data = None
         if my_data is not None and len(my_data) > 2:
             try:
@@ -682,25 +684,20 @@ class FormUi:
         additional_data = " "
         props = None
         last_topic = my_topic.split("/")[-1]
-        if last_topic in ["C","R","U","D","N"]:
+        if last_topic in ["C", "R", "U", "D", "N"]:
             return_topic = self.app.client.my_udn
             props = mqtt.Properties(PacketTypes.PUBLISH)
             random_number = randrange(100000)
             random_string = str(random_number)
             props.CorrelationData = random_string.encode("utf-8")
             props.ResponseTopic = return_topic
-            additional_data = "\ncorr Id: " + \
-                str(props.CorrelationData) + \
-                " Response Topic: " + props.ResponseTopic
+            additional_data = "\ncorr Id: " + str(props.CorrelationData) + " Response Topic: " + props.ResponseTopic
 
-        my_string = "publish: "+str(self.topic.get()) + " QOS: " + my_qos + \
-            " Retain: " + my_retain + " " + my_data + additional_data
+        my_string = "publish: " + str(self.topic.get()) + " QOS: " + my_qos + " Retain: " + my_retain + " " + my_data + additional_data
         logger.log(logging.INFO, my_string)
         topic_queue.append([props.CorrelationData, my_topic, None, None])
         print(my_string)
-        ret = self.app.client.publish(my_topic, cbor_data,
-                                my_qos_int, retain_flag, properties=props)
-
+        ret = self.app.client.publish(my_topic, cbor_data, my_qos_int, retain_flag, properties=props)
 
     def submit_IDD(self):
         """ get the IDD list
@@ -715,7 +712,7 @@ class FormUi:
             return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
-        print ("You selected item ",index, value)
+        print("You selected item ", index, value)
 
         cbor_data = None
         my_qos = self.level.get()
@@ -726,9 +723,8 @@ class FormUi:
             print("retain is true")
             retain_flag = True
         # /oic/res
-        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R", cb="oic_residd_cb") 
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R", cb="oic_residd_cb")
 
-        
     def submit_D(self):
         """ get the oic/d data
            will set a sequence of actions in play:
@@ -740,7 +736,7 @@ class FormUi:
             return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
-        print ("You selected item ",index, value)
+        print("You selected item ", index, value)
 
         cbor_data = None
         my_qos = self.level.get()
@@ -751,8 +747,7 @@ class FormUi:
             print("retain is true")
             retain_flag = True
         # /oic/res
-        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/d", "R",  cb="oic_d_cb") 
-
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/d", "R", cb="oic_d_cb")
 
     def submit_res(self):
         """ get the oic/res data
@@ -767,7 +762,7 @@ class FormUi:
             return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
-        print ("You selected item ",index, value)
+        print("You selected item ", index, value)
 
         cbor_data = None
         my_qos = self.level.get()
@@ -778,8 +773,7 @@ class FormUi:
             print("retain is true")
             retain_flag = True
         # /oic/res
-        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R",  cb="oic_res_cb") 
-
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/res", "R", cb="oic_res_cb")
 
     def submit_P(self):
         """ get the oic/p data
@@ -792,7 +786,7 @@ class FormUi:
             return
         index = int(self.l1.curselection()[0])
         value = self.l1.get(index)
-        print ("You selected item ",index, value)
+        print("You selected item ", index, value)
 
         cbor_data = None
         my_qos = self.level.get()
@@ -803,14 +797,14 @@ class FormUi:
             print("retain is true")
             retain_flag = True
         # /oic/res
-        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/p", "R", cb="oic_p_cb") 
-
+        publish_url(self.app.client, self.app.client.my_udn, value, "/oic/p", "R", cb="oic_p_cb")
 
     def submit_clear(self):
         """ clear the discovered device list
         """
-        print ("Clear - delete all entries")
-        self.l1.delete(0,'end')
+        print("Clear - delete all entries")
+        self.l1.delete(0, 'end')
+
 
 class ThirdUi:
 
@@ -818,7 +812,6 @@ class ThirdUi:
         """ third (bottom) pane
         """
         self.frame = frame
-
 
         self.return_topic = tk.StringVar()
         ttk.Label(self.frame, text='Return Topic:').grid(column=0, row=2, sticky=W)
@@ -833,7 +826,6 @@ class App:
         """
         self.root = root
         root.title('OCF MQTT Spy')
-
 
         menubar = tk.Menu(root)
         filemenu = tk.Menu(menubar, tearoff=0)
@@ -851,7 +843,7 @@ class App:
         # Create the panes and frames
         vertical_pane = ttk.PanedWindow(self.root, orient=VERTICAL)
         vertical_pane.grid(row=0, column=0, sticky="nsew")
-        #vertical_pane.grid(row=1, column=1, sticky="nsew")
+        # vertical_pane.grid(row=1, column=1, sticky="nsew")
         horizontal_pane = ttk.PanedWindow(vertical_pane, orient=HORIZONTAL)
 
         vertical_pane.add(horizontal_pane)
@@ -875,7 +867,7 @@ class App:
         self.console.app = self
         self.third = ThirdUi(third_frame)
         self.third.app = self
-        #self.third.labelText = 'OCF/*/oic%2Fd/R'
+        # self.third.labelText = 'OCF/*/oic%2Fd/R'
         self.root.protocol('WM_DELETE_WINDOW', self.quit)
         self.root.bind('<Control-q>', self.quit)
         signal.signal(signal.SIGINT, self.quit)
@@ -898,7 +890,9 @@ def random_string():
     x = uuid.uuid1()
     return str(x)
 
+
 app = None
+
 
 def config_init(config, file):
     'Create a configuration file if does not exist'
@@ -914,10 +908,11 @@ def config_init(config, file):
     with open(file, 'w') as output:
         config.write(output)
 
+
 def donothing():
-   filewin = tk.Toplevel(app.root)
-   button = tk.Button(filewin, text="Do nothing button")
-   button.pack()
+    filewin = tk.Toplevel(app.root)
+    button = tk.Button(filewin, text="Do nothing button")
+    button.pack()
 
 
 def main():
@@ -927,9 +922,9 @@ def main():
                         default="192.168.178.89", help="The host name or ip address of the MQTT server")
     parser.add_argument('-c', '--clientid', required=False, default=None, help="The MQTT client id")
     parser.add_argument('-u', '--username', required=False, default=None)
-    #parser.add_argument('-d', '--disable-clean-session', action='store_true', help="disable 'clean session' (sub + msgs not cleared when client disconnects)")
+    # parser.add_argument('-d', '--disable-clean-session', action='store_true', help="disable 'clean session' (sub + msgs not cleared when client disconnects)")
     parser.add_argument('-p', '--password', required=False, default=None)
-    parser.add_argument('-wc', '--writeconfig', required=False, default=None, action='store_true',help="writes an example config file")
+    parser.add_argument('-wc', '--writeconfig', required=False, default=None, action='store_true', help="writes an example config file")
     parser.add_argument('-rc', '--readconfig', required=False, default=None, help="Reads the configuration file with a specific filename")
     parser.add_argument('-P', '--port', required=False, type=int,
                         default=None, help='Defaults to 8883 for TLS or 1883 for non-TLS')
@@ -945,36 +940,34 @@ def main():
     args, unknown = parser.parse_known_args()
 
     config = configparser.RawConfigParser()
-    if  os.path.exists('mqtt.config'):
+    if os.path.exists('mqtt.config'):
         config.read('mqtt.config')
     elif args.readconfig is not None:
-       if  os.path.exists(args.readconfig ):
-         config.read(args.readconfig )
-         print("Reading config file ", args.readconfig)
+        if os.path.exists(args.readconfig):
+            config.read(args.readconfig)
+            print("Reading config file ", args.readconfig)
     else:
-       config = None
+        config = None
 
     if args.writeconfig is not None:
-        print ("writing config...")
+        print("writing config...")
         config = configparser.RawConfigParser()
         config_init(config, "mqtt.config")
-        print ("writing config...done ")
+        print("writing config...done ")
         quit()
-
     logging.basicConfig(level=logging.DEBUG)
-
     #
     #  handle arguments, do this as default
     #
     broker = args.host
-    if args.clientid == None:
+    if args.clientid is None:
         client_id = random_string()
         if config is None:
-          print("RANDOM Client_id :", client_id)
+            print("RANDOM Client_id :", client_id)
     else:
         client_id = args.clientid
-    port = args.port 
-    usetls = args.use_tls   
+    port = args.port
+    usetls = args.use_tls
     cacerts = None
     clcerts = None
     keycerts = None
@@ -985,21 +978,21 @@ def main():
             port = 1883
     keep_alive = args.keepalive
     if config is not None:
-        print ("  Reading Config file:")
-        if config.has_option('MQTT','host'):
+        print("  Reading Config file:")
+        if config.has_option('MQTT', 'host'):
             broker = config['MQTT']['host']
-        if config.has_option('MQTT','port'):
+        if config.has_option('MQTT', 'port'):
             port = int(config['MQTT']['port'])
-        if config.has_option('MQTT','client_id'):
+        if config.has_option('MQTT', 'client_id'):
             client_id = config['MQTT']['client_id']
-        if config.has_option('MQTT','keepalive'):
-            keep_alive = int( config['MQTT']['keepalive'])
-        if config.has_option('Security','cacerts'):
+        if config.has_option('MQTT', 'keepalive'):
+            keep_alive = int(config['MQTT']['keepalive'])
+        if config.has_option('Security', 'cacerts'):
             cacerts = config['Security']['cacerts']
             usetls = 1
-        if config.has_option('Security','clcerts'):
+        if config.has_option('Security', 'clcerts'):
             clcerts = config['Security']['clcerts']
-        if config.has_option('Security','keycerts'):
+        if config.has_option('Security', 'keycerts'):
             keycerts = config['Security']['keycerts']
 
     print("  Broker/Host :", broker)
@@ -1008,45 +1001,42 @@ def main():
     print("  keep_alive  :", keep_alive)
 
     # create the client
-    client = mqtt.Client(client_id, protocol=mqtt.MQTTv5) #, clean_session = not args.disable_clean_session)
+    client = mqtt.Client(client_id, protocol=mqtt.MQTTv5)  # , clean_session = not args.disable_clean_session)
 
     if usetls and config is None:
         if args.tls_version == "tlsv1.2":
-          tlsVersion = ssl.PROTOCOL_TLSv1_2
+            tlsVersion = ssl.PROTOCOL_TLSv1_2
         elif args.tls_version == "tlsv1.1":
-          tlsVersion = ssl.PROTOCOL_TLSv1_1
+            tlsVersion = ssl.PROTOCOL_TLSv1_1
         elif args.tls_version == "tlsv1":
-          tlsVersion = ssl.PROTOCOL_TLSv1
+            tlsVersion = ssl.PROTOCOL_TLSv1
         elif args.tls_version is None:
-          tlsVersion = None
+            tlsVersion = None
         else:
-          print ("Unknown TLS version - ignoring")
-          tlsVersion = None
+            print("Unknown TLS version - ignoring")
+            tlsVersion = None
 
         if not args.insecure:
             cert_required = ssl.CERT_REQUIRED
         else:
             cert_required = ssl.CERT_NONE
-            
         client.tls_set(ca_certs=args.cacerts, certfile=None, keyfile=None, cert_reqs=cert_required, tls_version=tlsVersion)
-
         if args.insecure:
             client.tls_insecure_set(True)
     elif usetls and config:
         tlsVersion = None
         cert_required = ssl.CERT_REQUIRED
-        #tlsVersion = ssl.PROTOCOL_TLSv1_2
+        # tlsVersion = ssl.PROTOCOL_TLSv1_2
         # setting tls connection
         if cacerts is not None:
-            print ("Setting TLS connection with certificate:", cacerts)
-            
+            print("Setting TLS connection with certificate:", cacerts)
             client.tls_set(ca_certs=cacerts, certfile=clcerts, keyfile=keycerts, cert_reqs=cert_required, tls_version=tlsVersion)
-            #client.tls_set(cacerts)
-            #client.tls_insecure_set(True)
-            #client.tls_set(cacerts)
+            # client.tls_set(cacerts)
+            # client.tls_insecure_set(True)
+            # client.tls_set(cacerts)
 
     if args.username or args.password:
-       client.username_pw_set(args.username, args.password)
+        client.username_pw_set(args.username, args.password)
 
     # set all the callbacks
     client.on_connect = on_connect
@@ -1062,22 +1052,22 @@ def main():
     root = tk.Tk()
     app = App(root)
 
-    #add the mqtt client as variable
+    # add the mqtt client as variable
     app.client = client
 
-    app.root.title('OCF MQTT Spy [client_id]: '+ client_id)
+    app.root.title('OCF MQTT Spy [client_id]: ' + client_id)
     app.third.return_topic.set(client_id)
-    #app.third.labelText = client_id
+    # app.third.labelText = client_id
 
     # create my_udn in the mqtt client
     # used as client_id
     # used as return topic
     client.my_udn = client_id
 
-    logger.log(logging.INFO, "broker :"+broker+"  port:"+str(port))
-    logger.log(logging.INFO, "clientid :"+str(client_id))
+    logger.log(logging.INFO, "broker :" + broker + "  port:" + str(port))
+    logger.log(logging.INFO, "clientid :" + str(client_id))
     if args.username or args.password:
-      logger.log(logging.INFO, "userid :"+str(args.username)+" password :"+str(args.password))
+        logger.log(logging.INFO, "userid :" + str(args.username) + " password :" + str(args.password))
 
     # subscribe to the "multicast" topic
     app.subscribe_topic = "OCF/*/#"
@@ -1086,11 +1076,11 @@ def main():
     print("subscription succeeded:", my_val)
 
     # subscribe to the return topic
-    logger.log(logging.INFO, "Subscribing to return topic: "+ str(app.client.my_udn))
+    logger.log(logging.INFO, "Subscribing to return topic: " + str(app.client.my_udn))
     my_val = client.subscribe(app.client.my_udn, 2)
     print("subscription succeeded:", my_val)
 
-    #app.root.config(menu=menubar)
+    # app.root.config(menu=menubar)
     app.root.mainloop()
 
 
